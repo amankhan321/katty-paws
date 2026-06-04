@@ -69,6 +69,7 @@ export default function Home() {
 
   const startPay = useCallback(() => {
     setSubmitMsg("");
+    sub.reset();
     pay.reset();
     pay.writeContract({
       address: KATTY_PAWS_ADDRESS,
@@ -77,12 +78,14 @@ export default function Home() {
       value: PLAY_FEE,
       dataSuffix: BUILDER_SUFFIX,
     });
-  }, [pay]);
+  }, [pay, sub]);
 
   const onGameOver = useCallback((r: RunResult) => {
+    sub.reset();
+    setSubmitMsg("");
     setRun(r);
     setScreen("over");
-  }, []);
+  }, [sub]);
 
   const submitScore = useCallback(async () => {
     if (!run || !address) return;
