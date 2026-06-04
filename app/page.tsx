@@ -4,36 +4,37 @@ import { useCallback, useEffect, useState } from "react";
 import {
   useAccount,
   useConnect,
+  useReadContract,
   useWriteContract,
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { KATTY_PAWS_ADDRESS, PLAY_FEE, kattyPawsAbi } from "@/lib/contract";
-import Game, { type GameResult } from "./Game";
+import GameCanvas, { type RunResult } from "./GameCanvas";
 
+type Screen = "home" | "playing" | "over";
 type FcUser = { fid?: number; username?: string; pfpUrl?: string };
-type Phase = "home" | "playing" | "over";
 
 export default function Home() {
   const [booted, setBooted] = useState(false);
   const [user, setUser] = useState<FcUser | null>(null);
-  const [phase, setPhase] = useState<Phase>("home");
-  const [lastScore, setLastScore] = useState(0);
-  const [best, setBest] = useState(0);
+  const [screen, setScreen] = useState<Screen>("home");
+  const [run, setRun] = useState<RunResult | null>(null);
+  const [submitMsg, setSubmitMsg] = useState<string>("");
 
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
-  const {
-    writeContract,
-    data: hash,
-    isPending,
-    error: writeError,
-    reset,
-  } = useWriteContract();
-  const { isLoading: confirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
+
+  const pay = useWriteContract();
+  const payRcpt = useWaitForTransactionReceipt({ hash: pay.data });
+  const sub = useWriteContract();
+  const subRcpt = useWaitForTransactionReceipt({ hash: sub.data });
+
+  const { data: cycleId } = useReadContract({
+    address: KATTY_PAWS_ADDRESS,
+    abi: kattyPawsAbi,
+    functionName: "cycleId",
   });
 
-  // Boot SDK + drop splash
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -49,49 +50,74 @@ export default function Home() {
         }
         await sdk.actions.ready();
       } catch {
-        /* outside a Farcaster client */
+        /* outside Farcaster — still render */
       } finally {
         if (alive) setBooted(true);
       }
     })();
-    try {
-      const b = Number(localStorage.getItem("kp_best") || "0");
-      if (!Number.isNaN(b)) setBest(b);
-    } catch {}
     return () => {
       alive = false;
     };
   }, []);
 
-  // When the play fee confirms, start the run.
   useEffect(() => {
-    if (isSuccess) {
-      setPhase("playing");
-      reset();
+    if (payRcpt.isSuccess && screen !== "playing") {
+      setScreen("playing");
+      pay.reset();
     }
-  }, [isSuccess, reset]);
+  }, [payRcpt.isSuccess, screen, pay]);
 
-  function pay() {
-    reset();
-    writeContract({
+  const startPay = useCallback(() => {
+    setSubmitMsg("");
+    pay.reset();
+    pay.writeContract({
       address: KATTY_PAWS_ADDRESS,
       abi: kattyPawsAbi,
       functionName: "payToPlay",
       value: PLAY_FEE,
     });
-  }
+  }, [pay]);
 
-  const handleGameOver = useCallback((r: GameResult) => {
-    setLastScore(r.score);
-    setBest((prev) => {
-      const next = Math.max(prev, r.score);
-      try {
-        localStorage.setItem("kp_best", String(next));
-      } catch {}
-      return next;
-    });
-    setPhase("over");
+  const onGameOver = useCallback((r: RunResult) => {
+    setRun(r);
+    setScreen("over");
   }, []);
+
+  const submitScore = useCallback(async () => {
+    if (!run || !address) return;
+    setSubmitMsg("Validating run…");
+    try {
+      const res = await fetch("/api/submit-score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          walletAddress: address,
+          seed: run.seed,
+          inputs: run.inputs,
+          score: run.score,
+          cycleId: cycleId ? Number(cycleId) : 1,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSubmitMsg(data.error || "Validation failed");
+        return;
+      }
+      setSubmitMsg("Confirm in wallet to save on-chain…");
+      sub.writeContract({
+        address: KATTY_PAWS_ADDRESS,
+        abi: kattyPawsAbi,
+        functionName: "submitScore",
+        args: [BigInt(data.score), BigInt(data.nonce), data.signature as `0x${string}`],
+      });
+    } catch {
+      setSubmitMsg("Network error — try again");
+    }
+  }, [run, address, cycleId, sub]);
+
+  useEffect(() => {
+    if (subRcpt.isSuccess) setSubmitMsg("Saved on-chain ✅");
+  }, [subRcpt.isSuccess]);
 
   if (!booted) {
     return (
@@ -101,10 +127,44 @@ export default function Home() {
     );
   }
 
-  if (phase === "playing") {
+  if (screen === "playing") {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col items-center justify-center px-4 py-6">
-        <Game onGameOver={handleGameOver} />
+      <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col justify-center px-3">
+        <p className="mb-2 text-center text-sm text-ink/60">
+          Tap to jump · tap twice to clear birds
+        </p>
+        <GameCanvas onGameOver={onGameOver} />
+      </main>
+    );
+  }
+
+  if (screen === "over" && run) {
+    const saving = sub.isPending || subRcpt.isLoading;
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col items-center justify-center px-5">
+        <div className="animate-pop w-full rounded-3xl bg-white/80 p-6 text-center shadow-md">
+          <div className="text-5xl">🐾</div>
+          <h2 className="mt-2 font-display text-2xl font-bold text-ink">Run over!</h2>
+          <p className="mt-4 font-display text-5xl font-bold text-kitty">{run.score}</p>
+          <p className="text-sm text-ink/60">points this run</p>
+
+          <button
+            onClick={submitScore}
+            disabled={saving || subRcpt.isSuccess}
+            className="mt-6 w-full rounded-2xl bg-gold py-3 font-display text-lg font-bold text-white shadow active:scale-[0.98] disabled:opacity-60"
+          >
+            {subRcpt.isSuccess ? "On the leaderboard ✅" : saving ? "Saving…" : "Submit to leaderboard"}
+          </button>
+          <button
+            onClick={startPay}
+            disabled={pay.isPending || payRcpt.isLoading}
+            className="mt-3 w-full rounded-2xl bg-kitty py-3 font-display text-lg font-bold text-white shadow active:scale-[0.98] disabled:opacity-60"
+          >
+            {pay.isPending || payRcpt.isLoading ? "Starting…" : "Play again 🐾"}
+          </button>
+
+          {submitMsg && <p className="mt-3 text-sm text-ink/70">{submitMsg}</p>}
+        </div>
       </main>
     );
   }
@@ -131,7 +191,7 @@ export default function Home() {
             🐾
           </div>
         )}
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0">
           <p className="truncate font-display text-lg font-semibold text-ink">
             {user?.username ? `@${user.username}` : "Guest cat"}
           </p>
@@ -141,32 +201,14 @@ export default function Home() {
               : "Wallet not connected"}
           </p>
         </div>
-        <div className="text-right">
-          <p className="font-display text-xl font-bold text-kitty">{best}</p>
-          <p className="text-[10px] text-ink/50">best</p>
-        </div>
       </section>
 
       <section className="mt-8 flex flex-1 flex-col items-center justify-center">
         <div className="animate-bob select-none text-[120px] leading-none">🐈</div>
-        {phase === "over" ? (
-          <div className="animate-pop mt-2 text-center">
-            <p className="font-display text-2xl font-bold text-ink">Run over!</p>
-            <p className="mt-1 font-display text-5xl font-bold text-kitty">
-              {lastScore}
-            </p>
-            <p className="text-sm text-ink/60">best {best}</p>
-          </div>
-        ) : (
-          <>
-            <p className="mt-2 font-display text-xl font-semibold text-ink/80">
-              Ready to run?
-            </p>
-            <p className="mt-1 text-center text-sm text-ink/60">
-              Pay a tiny fee to start. Top 3 scores this cycle win USDC.
-            </p>
-          </>
-        )}
+        <p className="mt-2 font-display text-xl font-semibold text-ink/80">Ready to run?</p>
+        <p className="mt-1 text-center text-sm text-ink/60">
+          Pay a tiny fee to start a run. Top 3 scores this cycle win USDC.
+        </p>
       </section>
 
       <section className="mt-6">
@@ -179,23 +221,19 @@ export default function Home() {
           </button>
         ) : (
           <button
-            onClick={pay}
-            disabled={isPending || confirming}
+            onClick={startPay}
+            disabled={pay.isPending || payRcpt.isLoading}
             className="w-full rounded-2xl bg-kitty py-4 font-display text-lg font-bold text-white shadow-md transition active:scale-[0.98] disabled:opacity-60"
           >
-            {isPending
+            {pay.isPending
               ? "Confirm in wallet…"
-              : confirming
+              : payRcpt.isLoading
               ? "Starting on Base…"
-              : phase === "over"
-              ? "Play Again 🐾"
               : "Play Now 🐾"}
           </button>
         )}
-        {writeError && (
-          <p className="mt-3 text-center text-sm text-red-600">
-            Transaction needed to play 🐾
-          </p>
+        {pay.error && (
+          <p className="mt-3 text-center text-sm text-red-600">Transaction needed to play 🐾</p>
         )}
         <p className="mt-3 text-center text-[11px] text-ink/50">
           ~$0.003 play fee on Base · powered by player fees 🐱
