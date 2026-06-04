@@ -5,7 +5,7 @@ import { Providers } from "./providers";
 // NOTE: replace the URL below with your real Vercel URL after first deploy,
 // and replace the image with a 3:2 preview. The embed meta is what makes the
 // app shareable as a Mini App card on Farcaster.
-const APP_URL = "https://katty-paws.vercel.app";
+const APP_URL = "https://katty-paws-u4ng.vercel.app";
 
 const miniappEmbed = {
   version: "1",
