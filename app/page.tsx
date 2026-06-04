@@ -79,7 +79,10 @@ export default function Home() {
     (async () => {
       try {
         const { sdk } = await import("@farcaster/miniapp-sdk");
-        const ctx: any = await sdk.context;
+        const ctx: any = await Promise.race([
+          sdk.context,
+          new Promise((r) => setTimeout(() => r(null), 1500)),
+        ]);
         if (alive && ctx?.user) {
           setUser({ fid: ctx.user.fid, username: ctx.user.username, pfpUrl: ctx.user.pfpUrl });
         }
@@ -88,7 +91,7 @@ export default function Home() {
         if (cf === 309857) setClientLabel("Base App");
         else if (cf) setClientLabel("Farcaster");
         if (alive && (ctx?.user || ctx?.client)) setInHost(true);
-        await sdk.actions.ready();
+        sdk.actions.ready().catch(() => {});
       } catch {
         /* outside Farcaster — still render */
       } finally {
