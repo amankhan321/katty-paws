@@ -1,24 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   useAccount,
   useConnect,
   useWriteContract,
   useWaitForTransactionReceipt,
 } from "wagmi";
-import {
-  KATTY_PAWS_ADDRESS,
-  PLAY_FEE,
-  kattyPawsAbi,
-} from "@/lib/contract";
+import { KATTY_PAWS_ADDRESS, PLAY_FEE, kattyPawsAbi } from "@/lib/contract";
+import Game, { type GameResult } from "./Game";
 
 type FcUser = { fid?: number; username?: string; pfpUrl?: string };
+type Phase = "home" | "playing" | "over";
 
 export default function Home() {
   const [booted, setBooted] = useState(false);
   const [user, setUser] = useState<FcUser | null>(null);
-  const [inFarcaster, setInFarcaster] = useState(false);
+  const [phase, setPhase] = useState<Phase>("home");
+  const [lastScore, setLastScore] = useState(0);
+  const [best, setBest] = useState(0);
 
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
@@ -33,7 +33,7 @@ export default function Home() {
     hash,
   });
 
-  // Boot the Mini App SDK: grab context, then call ready() to drop the splash.
+  // Boot SDK + drop splash
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -46,21 +46,32 @@ export default function Home() {
             username: ctx.user.username,
             pfpUrl: ctx.user.pfpUrl,
           });
-          setInFarcaster(true);
         }
         await sdk.actions.ready();
       } catch {
-        // Opened outside a Farcaster client — still render the app.
+        /* outside a Farcaster client */
       } finally {
         if (alive) setBooted(true);
       }
     })();
+    try {
+      const b = Number(localStorage.getItem("kp_best") || "0");
+      if (!Number.isNaN(b)) setBest(b);
+    } catch {}
     return () => {
       alive = false;
     };
   }, []);
 
-  function handlePlay() {
+  // When the play fee confirms, start the run.
+  useEffect(() => {
+    if (isSuccess) {
+      setPhase("playing");
+      reset();
+    }
+  }, [isSuccess, reset]);
+
+  function pay() {
     reset();
     writeContract({
       address: KATTY_PAWS_ADDRESS,
@@ -70,6 +81,18 @@ export default function Home() {
     });
   }
 
+  const handleGameOver = useCallback((r: GameResult) => {
+    setLastScore(r.score);
+    setBest((prev) => {
+      const next = Math.max(prev, r.score);
+      try {
+        localStorage.setItem("kp_best", String(next));
+      } catch {}
+      return next;
+    });
+    setPhase("over");
+  }, []);
+
   if (!booted) {
     return (
       <main className="flex min-h-screen items-center justify-center">
@@ -78,19 +101,23 @@ export default function Home() {
     );
   }
 
+  if (phase === "playing") {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col items-center justify-center px-4 py-6">
+        <Game onGameOver={handleGameOver} />
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col px-5 pb-10 pt-6">
-      {/* Header */}
       <header className="flex items-center justify-between">
-        <h1 className="font-display text-3xl font-bold text-kitty">
-          Katty Paws
-        </h1>
+        <h1 className="font-display text-3xl font-bold text-kitty">Katty Paws</h1>
         <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-bold text-ink shadow-sm">
           Base
         </span>
       </header>
 
-      {/* Profile */}
       <section className="mt-5 flex items-center gap-3 rounded-3xl bg-white/70 p-4 shadow-sm">
         {user?.pfpUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -104,7 +131,7 @@ export default function Home() {
             🐾
           </div>
         )}
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate font-display text-lg font-semibold text-ink">
             {user?.username ? `@${user.username}` : "Guest cat"}
           </p>
@@ -114,22 +141,34 @@ export default function Home() {
               : "Wallet not connected"}
           </p>
         </div>
-      </section>
-
-      {/* Cat stage */}
-      <section className="mt-8 flex flex-1 flex-col items-center justify-center">
-        <div className="animate-bob select-none text-[120px] leading-none">
-          🐈
+        <div className="text-right">
+          <p className="font-display text-xl font-bold text-kitty">{best}</p>
+          <p className="text-[10px] text-ink/50">best</p>
         </div>
-        <p className="mt-2 font-display text-xl font-semibold text-ink/80">
-          Ready to run?
-        </p>
-        <p className="mt-1 text-center text-sm text-ink/60">
-          Pay a tiny fee to start a run. Top 3 scores this cycle win USDC.
-        </p>
       </section>
 
-      {/* Action */}
+      <section className="mt-8 flex flex-1 flex-col items-center justify-center">
+        <div className="animate-bob select-none text-[120px] leading-none">🐈</div>
+        {phase === "over" ? (
+          <div className="animate-pop mt-2 text-center">
+            <p className="font-display text-2xl font-bold text-ink">Run over!</p>
+            <p className="mt-1 font-display text-5xl font-bold text-kitty">
+              {lastScore}
+            </p>
+            <p className="text-sm text-ink/60">best {best}</p>
+          </div>
+        ) : (
+          <>
+            <p className="mt-2 font-display text-xl font-semibold text-ink/80">
+              Ready to run?
+            </p>
+            <p className="mt-1 text-center text-sm text-ink/60">
+              Pay a tiny fee to start. Top 3 scores this cycle win USDC.
+            </p>
+          </>
+        )}
+      </section>
+
       <section className="mt-6">
         {!isConnected ? (
           <button
@@ -140,7 +179,7 @@ export default function Home() {
           </button>
         ) : (
           <button
-            onClick={handlePlay}
+            onClick={pay}
             disabled={isPending || confirming}
             className="w-full rounded-2xl bg-kitty py-4 font-display text-lg font-bold text-white shadow-md transition active:scale-[0.98] disabled:opacity-60"
           >
@@ -148,21 +187,16 @@ export default function Home() {
               ? "Confirm in wallet…"
               : confirming
               ? "Starting on Base…"
+              : phase === "over"
+              ? "Play Again 🐾"
               : "Play Now 🐾"}
           </button>
-        )}
-
-        {isSuccess && (
-          <p className="animate-pop mt-3 text-center text-sm font-bold text-green-700">
-            Paid! Game screen comes next 🎮
-          </p>
         )}
         {writeError && (
           <p className="mt-3 text-center text-sm text-red-600">
             Transaction needed to play 🐾
           </p>
         )}
-
         <p className="mt-3 text-center text-[11px] text-ink/50">
           ~$0.003 play fee on Base · powered by player fees 🐱
         </p>
