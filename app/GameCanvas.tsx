@@ -29,6 +29,8 @@ export default function GameCanvas({
   onGameOver: (r: RunResult) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const onGameOverRef = useRef(onGameOver);
+  onGameOverRef.current = onGameOver;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -285,7 +287,7 @@ export default function GameCanvas({
       if (!state.alive) {
         if (!done) {
           done = true;
-          onGameOver({ seed, inputs, score: scoreOf(state), ticks: state.tick });
+          onGameOverRef.current({ seed, inputs, score: scoreOf(state), ticks: state.tick });
         }
         return;
       }
@@ -298,7 +300,8 @@ export default function GameCanvas({
       window.removeEventListener("keydown", onKey);
       canvas.removeEventListener("pointerdown", onPointer);
     };
-  }, [onGameOver]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <canvas
