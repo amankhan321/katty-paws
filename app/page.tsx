@@ -29,6 +29,7 @@ function fmtTime(secs: number) {
 
 export default function Home() {
   const [booted, setBooted] = useState(false);
+  const [inHost, setInHost] = useState(false);
   const [user, setUser] = useState<FcUser | null>(null);
   const [clientLabel, setClientLabel] = useState<string>("");
   const [screen, setScreen] = useState<Screen>("home");
@@ -85,6 +86,7 @@ export default function Home() {
         const cf = ctx?.client?.clientFid;
         if (cf === 309857) setClientLabel("Base App");
         else if (cf) setClientLabel("Farcaster");
+        if (alive && (ctx?.user || ctx?.client)) setInHost(true);
         await sdk.actions.ready();
       } catch {
         /* outside Farcaster — still render */
@@ -168,6 +170,37 @@ export default function Home() {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <div className="animate-bob text-6xl">🐱</div>
+      </main>
+    );
+  }
+
+  // ---------- LAUNCH SCREEN (plain browser, not inside a host) ----------
+  if (!inHost) {
+    const APP = "https://katty-paws-u4ng.vercel.app";
+    const baseLink = `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(APP)}`;
+    const fcLink =
+      "https://farcaster.xyz/~/mini-apps/launch?domain=katty-paws-u4ng.vercel.app";
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col items-center justify-center px-6 text-center">
+        <div className="animate-bob text-[120px] leading-none">🐈</div>
+        <h1 className="mt-2 font-display text-4xl font-bold text-kitty">Katty Paws</h1>
+        <p className="mt-2 text-ink/70">A cat-runner on Base. Top 3 each cycle win USDC.</p>
+        <p className="mt-1 text-sm text-ink/50">Best played inside the Base App or Farcaster.</p>
+        <a
+          href={baseLink}
+          className="mt-8 w-full rounded-2xl bg-[#0052FF] py-4 font-display text-lg font-bold text-white shadow-md active:scale-[0.98]"
+        >
+          Open in Base App
+        </a>
+        <a
+          href={fcLink}
+          className="mt-3 w-full rounded-2xl bg-[#7C65C1] py-4 font-display text-lg font-bold text-white shadow-md active:scale-[0.98]"
+        >
+          Open in Farcaster
+        </a>
+        <p className="mt-6 text-xs text-ink/40">
+          Tip: posting the link inside Base App or Farcaster opens it as a game card.
+        </p>
       </main>
     );
   }
