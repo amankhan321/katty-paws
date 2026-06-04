@@ -1,0 +1,17 @@
+{
+  "accountAssociation": {
+    "header": "REPLACE_AFTER_DEPLOY",
+    "payload": "REPLACE_AFTER_DEPLOY",
+    "signature": "REPLACE_AFTER_DEPLOY"
+  },
+  "miniapp": {
+    "version": "1",
+    "name": "Katty Paws",
+    "iconUrl": "https://katty-paws.vercel.app/icon.png",
+    "homeUrl": "https://katty-paws.vercel.app",
+    "imageUrl": "https://katty-paws.vercel.app/preview.png",
+    "buttonTitle": "🐱 Play Katty Paws",
+    "splashImageUrl": "https://katty-paws.vercel.app/splash.png",
+    "splashBackgroundColor": "#FFF5E4"
+  }
+}
