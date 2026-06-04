@@ -36,6 +36,7 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("play");
   const [run, setRun] = useState<RunResult | null>(null);
   const [submitMsg, setSubmitMsg] = useState<string>("");
+  const [notNewBest, setNotNewBest] = useState(false);
 
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
@@ -65,7 +66,7 @@ export default function Home() {
     functionName: "timeLeft",
     query: { refetchInterval: 30000 },
   });
-  const { data: myBest } = useReadContract({
+  const { data: myBest, refetch: refetchBest } = useReadContract({
     address: KATTY_PAWS_ADDRESS,
     abi: kattyPawsAbi,
     functionName: "bestScore",
@@ -107,8 +108,11 @@ export default function Home() {
   }, [payRcpt.isSuccess, screen, pay]);
 
   useEffect(() => {
-    if (subRcpt.isSuccess) setSubmitMsg("Saved on-chain ✅");
-  }, [subRcpt.isSuccess]);
+    if (subRcpt.isSuccess) {
+      setSubmitMsg("Saved on-chain ✅");
+      refetchBest();
+    }
+  }, [subRcpt.isSuccess, refetchBest]);
 
   const startPay = useCallback(() => {
     setSubmitMsg("");
@@ -135,6 +139,16 @@ export default function Home() {
 
   const submitScore = useCallback(async () => {
     if (!run || !address) return;
+    // Only a higher score can save — block low submissions before any tx/revert.
+    let prevBest = Number(myBest ?? 0n);
+    try {
+      const r = await refetchBest();
+      if (r.data !== undefined) prevBest = Number(r.data);
+    } catch {}
+    if (run.score <= prevBest) {
+      setNotNewBest(true);
+      return;
+    }
     setSubmitMsg("Validating run…");
     try {
       const res = await fetch("/api/submit-score", {
@@ -164,7 +178,7 @@ export default function Home() {
     } catch {
       setSubmitMsg("Network error — try again");
     }
-  }, [run, address, cid, sub]);
+  }, [run, address, cid, sub, refetchBest, myBest]);
 
   if (!booted) {
     return (
@@ -243,6 +257,24 @@ export default function Home() {
           </button>
           {submitMsg && <p className="mt-3 text-sm text-ink/70">{submitMsg}</p>}
         </div>
+        {notNewBest && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6">
+            <div className="animate-pop w-full max-w-[320px] rounded-3xl bg-white p-6 text-center shadow-xl">
+              <div className="text-5xl">🙀</div>
+              <h3 className="mt-2 font-display text-xl font-bold text-ink">Not a new best yet</h3>
+              <p className="mt-2 text-sm text-ink/70">
+                Your best this cycle is <b>{Number(myBest ?? 0)}</b>. Only a higher score
+                saves to the leaderboard — beat it, then submit!
+              </p>
+              <button
+                onClick={() => setNotNewBest(false)}
+                className="mt-5 w-full rounded-2xl bg-kitty py-3 font-display font-bold text-white active:scale-[0.98]"
+              >
+                Got it 🐾
+              </button>
+            </div>
+          </div>
+        )}
       </main>
     );
   }
