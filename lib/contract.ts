@@ -67,3 +67,9 @@ export const kattyPawsAbi = [
     outputs: [{ type: "uint256" }],
   },
 ] as const;
+
+// Base Builder Code (bc_vya6ii7o) encoded as a calldata suffix. Appended to
+// every transaction so the app gets attribution on Base. Trailing bytes are
+// ignored by the contract's ABI decoder, so this is safe to attach.
+export const BUILDER_SUFFIX =
+  "0x62635f767961366969376f0b0080218021802180218021802180218021" as const;

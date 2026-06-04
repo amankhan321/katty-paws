@@ -25,6 +25,7 @@ export const metadata: Metadata = {
   description: "Skill-based cat-runner on Base. Top 3 win USDC.",
   other: {
     "fc:miniapp": JSON.stringify(miniappEmbed),
+    "base:app_id": "6a2152cf1bf1ab98bb37b9b5",
   },
 };
 

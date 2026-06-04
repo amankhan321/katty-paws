@@ -8,7 +8,7 @@ import {
   useWriteContract,
   useWaitForTransactionReceipt,
 } from "wagmi";
-import { KATTY_PAWS_ADDRESS, PLAY_FEE, kattyPawsAbi } from "@/lib/contract";
+import { KATTY_PAWS_ADDRESS, PLAY_FEE, BUILDER_SUFFIX, kattyPawsAbi } from "@/lib/contract";
 import GameCanvas, { type RunResult } from "./GameCanvas";
 
 type Screen = "home" | "playing" | "over";
@@ -75,6 +75,7 @@ export default function Home() {
       abi: kattyPawsAbi,
       functionName: "payToPlay",
       value: PLAY_FEE,
+      dataSuffix: BUILDER_SUFFIX,
     });
   }, [pay]);
 
@@ -108,6 +109,7 @@ export default function Home() {
         address: KATTY_PAWS_ADDRESS,
         abi: kattyPawsAbi,
         functionName: "submitScore",
+        dataSuffix: BUILDER_SUFFIX,
         args: [BigInt(data.score), BigInt(data.nonce), data.signature as `0x${string}`],
       });
     } catch {
