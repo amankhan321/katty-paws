@@ -39,7 +39,7 @@ export default function Home() {
     (async () => {
       try {
         const { sdk } = await import("@farcaster/miniapp-sdk");
-        const ctx = await sdk.context;
+        const ctx: any = await sdk.context;
         if (alive && ctx?.user) {
           setUser({
             fid: ctx.user.fid,
