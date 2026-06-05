@@ -492,7 +492,7 @@ export default function Home() {
               onClick={() => setShowHype(false)}
               className="mt-5 w-full rounded-2xl bg-white py-3 font-display text-lg font-bold text-kitty shadow active:scale-[0.98]"
             >
-              Let\u2019s run! 🐾
+              Let's run! 🐾
             </button>
           </div>
         </div>
