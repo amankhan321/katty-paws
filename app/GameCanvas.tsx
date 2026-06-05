@@ -205,25 +205,60 @@ export default function GameCanvas({
 
     function draw() {
       if (!ctx) return;
-      ctx.fillStyle = "#FFF1DD";
-      ctx.fillRect(0, 0, W, H);
-      // parallax buildings
-      ctx.fillStyle = "#F4D6AE";
-      for (let i = 0; i < 7; i++) {
-        const bx = (((i * 80 - state.tick * 0.5) % 560) + 560) % 560 - 80;
-        ctx.fillRect(bx, GROUND - 110, 56, 110);
-      }
-      // ground
-      ctx.fillStyle = "#E8B984";
+      // ---- SKY ----
+      const sky = ctx.createLinearGradient(0, 0, 0, GROUND);
+      sky.addColorStop(0, "#8FD3FF");
+      sky.addColorStop(0.55, "#CFEBFF");
+      sky.addColorStop(1, "#FCE6C4");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, W, GROUND + 1);
+
+      // sun glow
+      ctx.fillStyle = "rgba(255,246,214,0.5)";
+      ctx.beginPath();
+      ctx.arc(W - 60, 72, 62, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,251,236,0.95)";
+      ctx.beginPath();
+      ctx.arc(W - 60, 72, 36, 0, Math.PI * 2);
+      ctx.fill();
+
+      // clouds (slow parallax)
+      const cloud = (cx: number, cy: number, sc: number) => {
+        ctx.fillStyle = "rgba(255,255,255,0.92)";
+        ctx.beginPath();
+        ctx.arc(cx, cy, 16 * sc, 0, Math.PI * 2);
+        ctx.arc(cx + 18 * sc, cy + 4 * sc, 20 * sc, 0, Math.PI * 2);
+        ctx.arc(cx + 40 * sc, cy, 15 * sc, 0, Math.PI * 2);
+        ctx.arc(cx + 20 * sc, cy - 9 * sc, 16 * sc, 0, Math.PI * 2);
+        ctx.fill();
+      };
+      const span = W + 180;
+      const cs = (state.tick * 0.25) % span;
+      cloud(((span - cs + 40) % span) - 40, 58, 1.1);
+      cloud(((span - cs + 260) % span) - 40, 116, 0.8);
+      cloud(((span - cs + 120) % span) - 40, 150, 0.95);
+
+      // far hazy skyline + warm mid buildings
+      drawBand(ctx, state.tick * 0.6, 70, GROUND, 70, ["#AFC9DE", "#BCD3E5", "#A7C2D8"], false);
+      drawBand(ctx, state.tick * 1.15, 150, GROUND, 62, ["#E6C094", "#D4A276", "#C89068", "#EBD2AC"], true);
+
+      // ---- GROUND ----
+      const gnd = ctx.createLinearGradient(0, GROUND, 0, H);
+      gnd.addColorStop(0, "#E7B681");
+      gnd.addColorStop(1, "#D49E62");
+      ctx.fillStyle = gnd;
       ctx.fillRect(0, GROUND, W, H - GROUND);
-      ctx.fillStyle = "#D9A368";
-      ctx.fillRect(0, GROUND, W, 6);
-      // ground dashes (motion)
-      ctx.fillStyle = "rgba(180,120,70,0.5)";
+      ctx.fillStyle = "#C98C52";
+      ctx.fillRect(0, GROUND, W, 5);
+      ctx.fillStyle = "rgba(255,242,218,0.6)";
       for (let i = 0; i < 10; i++) {
-        const dx = (((i * 48 - state.tick * state.speed) % 480) + 480) % 480;
-        ctx.fillRect(dx, GROUND + 18, 22, 4);
+        const dx = ((((i * 52 - state.tick * state.speed) % 520) + 520) % 520) - 20;
+        ctx.fillRect(dx, GROUND + 24, 26, 5);
       }
+
+      // trees + lamps (foreground parallax)
+      drawTrees(ctx, state.tick * 1.5, GROUND);
 
       // coins
       for (const c of state.coins) {
@@ -312,6 +347,81 @@ export default function GameCanvas({
       style={{ aspectRatio: `${W} / ${H}` }}
     />
   );
+}
+
+function hashB(n: number): number {
+  n = n | 0;
+  n = Math.imul(n ^ (n >>> 15), n | 1);
+  n ^= n + Math.imul(n ^ (n >>> 7), n | 61);
+  return (n ^ (n >>> 14)) >>> 0;
+}
+
+function drawBand(
+  ctx: CanvasRenderingContext2D,
+  offset: number,
+  range: number,
+  groundY: number,
+  tw: number,
+  palette: string[],
+  windows: boolean
+) {
+  const start = Math.floor(offset / tw);
+  const n = Math.ceil(700 / tw) + 2;
+  for (let i = -1; i < n; i++) {
+    const wi = start + i;
+    const x = i * tw - (offset % tw);
+    const hh = 48 + (hashB(wi) % range);
+    const top = groundY - hh;
+    ctx.fillStyle = palette[hashB(wi * 7) % palette.length];
+    ctx.fillRect(x, top, tw - 6, hh);
+    ctx.fillStyle = "rgba(0,0,0,0.07)";
+    ctx.fillRect(x, top, tw - 6, 4);
+    if (windows) {
+      ctx.fillStyle = "rgba(255,250,235,0.8)";
+      const rows = Math.min(6, Math.floor(hh / 26));
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < 3; c++) {
+          if (hashB(wi * 131 + r * 17 + c) % 5 === 0) continue;
+          ctx.fillRect(x + 8 + c * 16, top + 12 + r * 22, 9, 11);
+        }
+      }
+    }
+  }
+}
+
+function drawTrees(ctx: CanvasRenderingContext2D, offset: number, groundY: number) {
+  const tw = 150;
+  const start = Math.floor(offset / tw);
+  const n = Math.ceil(700 / tw) + 2;
+  for (let i = -1; i < n; i++) {
+    const wi = start + i;
+    const baseX = i * tw - (offset % tw) + (hashB(wi) % 36);
+    if (hashB(wi * 3) % 3 === 0) {
+      ctx.strokeStyle = "#5b6b73";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(baseX + 110, groundY);
+      ctx.lineTo(baseX + 110, groundY - 72);
+      ctx.stroke();
+      ctx.fillStyle = "#F6C453";
+      ctx.beginPath();
+      ctx.arc(baseX + 110, groundY - 74, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const tx = baseX + 28;
+    ctx.fillStyle = "#7a5230";
+    ctx.fillRect(tx - 4, groundY - 38, 8, 38);
+    ctx.fillStyle = "#6FB85A";
+    ctx.beginPath();
+    ctx.arc(tx, groundY - 46, 22, 0, Math.PI * 2);
+    ctx.arc(tx - 15, groundY - 36, 15, 0, Math.PI * 2);
+    ctx.arc(tx + 15, groundY - 36, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#86CC6B";
+    ctx.beginPath();
+    ctx.arc(tx + 4, groundY - 52, 13, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function roundRect(
