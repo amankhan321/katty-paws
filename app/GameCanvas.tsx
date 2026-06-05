@@ -276,24 +276,66 @@ export default function GameCanvas({
         ctx.fill();
       }
 
-      // obstacles
+      // obstacles (high contrast so they never blend into the warm scene)
       for (const o of state.obstacles) {
         if (o.kind === 2) {
-          ctx.fillStyle = "#6B7280";
+          const bx = o.x + o.w / 2;
+          const by = o.y + o.h / 2;
+          ctx.fillStyle = "#37474F";
           ctx.beginPath();
-          ctx.ellipse(o.x + o.w / 2, o.y + o.h / 2, o.w / 2, o.h / 2, 0, 0, Math.PI * 2);
+          ctx.ellipse(bx, by, o.w / 2, o.h / 2, 0, 0, Math.PI * 2);
           ctx.fill();
-          ctx.fillStyle = "#4B5563";
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "rgba(255,255,255,0.9)";
+          ctx.stroke();
+          const flap = (state.tick % 16) < 8 ? -10 : 2;
+          ctx.fillStyle = "#263238";
           ctx.beginPath();
-          const flap = (state.tick % 18) < 9 ? -8 : 4;
-          ctx.moveTo(o.x + o.w / 2, o.y + o.h / 2);
-          ctx.lineTo(o.x + o.w / 2 - 14, o.y + flap);
-          ctx.lineTo(o.x + o.w / 2 + 2, o.y + o.h / 2 - 2);
+          ctx.moveTo(bx - 2, by);
+          ctx.lineTo(bx - 16, by + flap);
+          ctx.lineTo(bx + 4, by - 4);
+          ctx.fill();
+          ctx.fillStyle = "#FFB300";
+          ctx.beginPath();
+          ctx.moveTo(bx + o.w / 2 - 2, by);
+          ctx.lineTo(bx + o.w / 2 + 7, by + 2);
+          ctx.lineTo(bx + o.w / 2 - 2, by + 5);
+          ctx.fill();
+          ctx.fillStyle = "#fff";
+          ctx.beginPath();
+          ctx.arc(bx + 6, by - 3, 2.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#111";
+          ctx.beginPath();
+          ctx.arc(bx + 6.6, by - 3, 1.2, 0, Math.PI * 2);
           ctx.fill();
         } else {
-          ctx.fillStyle = o.kind === 0 ? "#7C4A2D" : "#A56A3A";
-          roundRect(ctx, o.x, o.y, o.w, o.h, 6);
+          // ground shadow
+          ctx.fillStyle = "rgba(80,50,20,0.22)";
+          ctx.beginPath();
+          ctx.ellipse(o.x + o.w / 2, GROUND + 4, o.w / 2 + 4, 5, 0, 0, Math.PI * 2);
           ctx.fill();
+          if (o.kind === 0) {
+            ctx.fillStyle = "#37474F";
+            roundRect(ctx, o.x, o.y, o.w, o.h, 5);
+            ctx.fill();
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = "rgba(255,255,255,0.92)";
+            ctx.stroke();
+            ctx.fillStyle = "#FF5A36";
+            roundRect(ctx, o.x, o.y, o.w, 7, 4);
+            ctx.fill();
+          } else {
+            ctx.fillStyle = "#D64541";
+            roundRect(ctx, o.x, o.y, o.w, o.h, 7);
+            ctx.fill();
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = "rgba(255,255,255,0.92)";
+            ctx.stroke();
+            ctx.fillStyle = "rgba(0,0,0,0.2)";
+            ctx.fillRect(o.x + 2, o.y + o.h * 0.32, o.w - 4, 3);
+            ctx.fillRect(o.x + 2, o.y + o.h * 0.64, o.w - 4, 3);
+          }
         }
       }
 
