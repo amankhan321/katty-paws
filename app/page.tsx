@@ -79,18 +79,25 @@ export default function Home() {
     (async () => {
       try {
         const { sdk } = await import("@farcaster/miniapp-sdk");
+        let inMini = false;
+        try {
+          inMini = await Promise.race([
+            sdk.isInMiniApp(),
+            new Promise<boolean>((r) => setTimeout(() => r(false), 3000)),
+          ]);
+        } catch {}
         const ctx: any = await Promise.race([
           sdk.context,
-          new Promise((r) => setTimeout(() => r(null), 1500)),
+          new Promise((r) => setTimeout(() => r(null), 2000)),
         ]);
         if (alive && ctx?.user) {
           setUser({ fid: ctx.user.fid, username: ctx.user.username, pfpUrl: ctx.user.pfpUrl });
         }
-        // best-effort: which client opened the app
         const cf = ctx?.client?.clientFid;
         if (cf === 309857) setClientLabel("Base App");
         else if (cf) setClientLabel("Farcaster");
-        if (alive && (ctx?.user || ctx?.client)) setInHost(true);
+        // Any of these means we are inside a real mini-app host (Base App or Farcaster).
+        if (alive && (inMini || ctx?.user || ctx?.client)) setInHost(true);
         sdk.actions.ready().catch(() => {});
       } catch {
         /* outside Farcaster — still render */
@@ -193,8 +200,6 @@ export default function Home() {
 
   // ---------- LAUNCH SCREEN (plain browser, not inside a host) ----------
   if (!inHost) {
-    const APP = "https://katty-paws-u4ng.vercel.app";
-    const baseLink = `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(APP)}`;
     const fcLink =
       "https://farcaster.xyz/~/mini-apps/launch?domain=katty-paws-u4ng.vercel.app";
     return (
@@ -204,19 +209,17 @@ export default function Home() {
         <p className="mt-2 text-ink/70">A cat-runner on Base. Top 3 each cycle win USDC.</p>
         <p className="mt-1 text-sm text-ink/50">Best played inside the Base App or Farcaster.</p>
         <a
-          href={baseLink}
-          className="mt-8 w-full rounded-2xl bg-[#0052FF] py-4 font-display text-lg font-bold text-white shadow-md active:scale-[0.98]"
-        >
-          Open in Base App
-        </a>
-        <a
           href={fcLink}
-          className="mt-3 w-full rounded-2xl bg-[#7C65C1] py-4 font-display text-lg font-bold text-white shadow-md active:scale-[0.98]"
+          className="mt-8 w-full rounded-2xl bg-[#7C65C1] py-4 font-display text-lg font-bold text-white shadow-md active:scale-[0.98]"
         >
           Open in Farcaster
         </a>
+        <div className="mt-4 w-full rounded-2xl bg-[#0052FF]/10 p-4 text-sm text-ink/75">
+          <b className="text-[#0052FF]">In Base App:</b> open Katty Paws from the Mini Apps tab
+          or search “Katty Paws”. Base’s in-app browser is not the game.
+        </div>
         <p className="mt-6 text-xs text-ink/40">
-          Tip: posting the link inside Base App or Farcaster opens it as a game card.
+          Tip: posting the link as a cast opens it as a tappable game card.
         </p>
       </main>
     );
