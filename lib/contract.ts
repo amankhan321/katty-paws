@@ -75,8 +75,8 @@ export const BUILDER_SUFFIX =
   "0x62635f767961366969376f0b0080218021802180218021802180218021" as const;
 
 // ── Daily streak contract (deploy KattyDailyStreak.sol, paste address) ──
-export const DAILY_STREAK_ADDRESS =
-  "0x6aE99C3dE9fBF9f99D03D3E62997cBF63c6dFB3b" as const;
+export const DAILY_STREAK_ADDRESS: `0x${string}` =
+  "0x6aE99C3dE9fBF9f99D03D3E62997cBF63c6dFB3b";
 
 export const dailyStreakAbi = [
   {
