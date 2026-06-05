@@ -8,11 +8,19 @@ import {
   useWriteContract,
   useWaitForTransactionReceipt,
 } from "wagmi";
-import { KATTY_PAWS_ADDRESS, PLAY_FEE, BUILDER_SUFFIX, kattyPawsAbi } from "@/lib/contract";
+import {
+  KATTY_PAWS_ADDRESS,
+  PLAY_FEE,
+  BUILDER_SUFFIX,
+  kattyPawsAbi,
+  DAILY_STREAK_ADDRESS,
+  dailyStreakAbi,
+} from "@/lib/contract";
 import GameCanvas, { type RunResult } from "./GameCanvas";
 
 type Screen = "home" | "playing" | "over";
-type Tab = "play" | "leaderboard" | "profile";
+type Tab = "play" | "daily" | "leaderboard" | "profile";
+const ZERO = "0x0000000000000000000000000000000000000000";
 type FcUser = { fid?: number; username?: string; pfpUrl?: string };
 
 const short = (a?: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "");
@@ -76,6 +84,16 @@ export default function Home() {
     query: { enabled: !!address },
   });
 
+  const { data: streakData, refetch: refetchStreak } = useReadContract({
+    address: DAILY_STREAK_ADDRESS,
+    abi: dailyStreakAbi,
+    functionName: "getStreak",
+    args: [(address ?? ZERO) as `0x${string}`],
+    query: { enabled: !!address && DAILY_STREAK_ADDRESS !== ZERO },
+  });
+  const chk = useWriteContract();
+  const chkRcpt = useWaitForTransactionReceipt({ hash: chk.data });
+
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -127,6 +145,10 @@ export default function Home() {
     }
   }, [subRcpt.isSuccess, refetchBest]);
 
+  useEffect(() => {
+    if (chkRcpt.isSuccess) refetchStreak();
+  }, [chkRcpt.isSuccess, refetchStreak]);
+
   const startPay = useCallback(() => {
     setSubmitMsg("");
     sub.reset();
@@ -144,6 +166,15 @@ export default function Home() {
     const inj = connectors.find((c) => c.id === "injected");
     connect({ connector: inHost ? connectors[0] : inj ?? connectors[0] });
   }, [connect, connectors, inHost]);
+
+  const doCheckIn = useCallback(() => {
+    chk.writeContract({
+      address: DAILY_STREAK_ADDRESS,
+      abi: dailyStreakAbi,
+      functionName: "checkIn",
+      dataSuffix: BUILDER_SUFFIX,
+    });
+  }, [chk]);
 
   const onGameOver = useCallback(
     (r: RunResult) => {
@@ -391,6 +422,77 @@ export default function Home() {
           </div>
         )}
 
+        {tab === "daily" && (
+          <div>
+            <h2 className="font-display text-xl font-bold text-ink">Daily Streak 🔥</h2>
+            <p className="text-xs text-ink/50">Check in every day. Miss a day and it resets.</p>
+
+            <div className="mt-4 rounded-3xl bg-gradient-to-b from-kitty to-gold p-6 text-center text-white shadow-md">
+              <div className="text-5xl">🔥</div>
+              <p className="mt-1 font-display text-5xl font-bold">
+                {streakData ? Number(streakData[0]) : 0}
+              </p>
+              <p className="text-sm font-semibold text-white/90">day streak</p>
+            </div>
+
+            <div className="mt-4 flex justify-center gap-2">
+              {[1, 2, 3, 4, 5, 6, 7].map((d) => {
+                const cur = streakData ? Number(streakData[0]) : 0;
+                const on = cur > 0 && (((cur - 1) % 7) + 1) >= d;
+                return (
+                  <div
+                    key={d}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full text-sm ${
+                      on ? "bg-gold text-white" : "bg-white/70 text-ink/30"
+                    }`}
+                  >
+                    {on ? "🔥" : d}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-6">
+              {DAILY_STREAK_ADDRESS === ZERO ? (
+                <p className="rounded-2xl bg-white/70 p-4 text-center text-sm text-ink/60">
+                  Daily check-in goes live once the streak contract is deployed.
+                </p>
+              ) : !isConnected ? (
+                <button
+                  onClick={connectWallet}
+                  className="w-full rounded-2xl bg-ink py-4 font-display text-lg font-semibold text-white shadow-md active:scale-[0.98]"
+                >
+                  Connect Wallet
+                </button>
+              ) : streakData && !streakData[2] ? (
+                <div className="rounded-2xl bg-white/70 p-4 text-center">
+                  <p className="font-display font-bold text-ink">Checked in today ✅</p>
+                  <p className="mt-1 text-sm text-ink/60">Come back tomorrow 🌙 (resets at UTC midnight)</p>
+                </div>
+              ) : (
+                <button
+                  onClick={doCheckIn}
+                  disabled={chk.isPending || chkRcpt.isLoading}
+                  className="w-full rounded-2xl bg-kitty py-4 font-display text-lg font-bold text-white shadow-md active:scale-[0.98] disabled:opacity-60"
+                >
+                  {chk.isPending
+                    ? "Confirm in wallet…"
+                    : chkRcpt.isLoading
+                    ? "Checking in…"
+                    : "Check in today 🔥"}
+                </button>
+              )}
+              {chk.error && (
+                <p className="mt-2 text-center text-sm text-red-600">Couldn’t check in — try again</p>
+              )}
+            </div>
+
+            <div className="mt-4 rounded-2xl bg-white/60 p-4 text-xs text-ink/60">
+              Keep your streak alive to unlock cat skins soon. Free — you only pay gas.
+            </div>
+          </div>
+        )}
+
         {tab === "leaderboard" && (
           <div>
             <h2 className="font-display text-xl font-bold text-ink">Top Cats 🏆</h2>
@@ -449,13 +551,14 @@ export default function Home() {
       <nav className="fixed inset-x-0 bottom-0 mx-auto flex w-full max-w-[390px] items-center justify-around border-t border-black/5 bg-cream/90 py-2 backdrop-blur">
         {([
           ["play", "🐱", "Play"],
+          ["daily", "🔥", "Daily"],
           ["leaderboard", "🏆", "Ranks"],
           ["profile", "👤", "Profile"],
         ] as [Tab, string, string][]).map(([t, icon, label]) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex flex-col items-center px-6 py-1 ${
+            className={`flex flex-col items-center px-4 py-1 ${
               tab === t ? "text-kitty" : "text-ink/45"
             }`}
           >

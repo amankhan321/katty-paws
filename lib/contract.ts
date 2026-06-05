@@ -73,3 +73,35 @@ export const kattyPawsAbi = [
 // ignored by the contract's ABI decoder, so this is safe to attach.
 export const BUILDER_SUFFIX =
   "0x62635f767961366969376f0b0080218021802180218021802180218021" as const;
+
+// ── Daily streak contract (deploy KattyDailyStreak.sol, paste address) ──
+export const DAILY_STREAK_ADDRESS =
+  "0x0000000000000000000000000000000000000000" as const; // REPLACE AFTER DEPLOY
+
+export const dailyStreakAbi = [
+  {
+    type: "function",
+    name: "checkIn",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "getStreak",
+    stateMutability: "view",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [
+      { name: "currentStreak", type: "uint256" },
+      { name: "lastCheckInDay", type: "uint256" },
+      { name: "canCheckInToday", type: "bool" },
+    ],
+  },
+  {
+    type: "function",
+    name: "totalCheckIns",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ type: "uint256" }],
+  },
+] as const;
