@@ -201,7 +201,7 @@ export default function Home() {
   // ---------- LAUNCH SCREEN (plain browser, not inside a host) ----------
   if (!inHost) {
     const APP = "https://katty-paws-u4ng.vercel.app";
-    const baseLink = `cbwallet://miniapp?url=${encodeURIComponent(APP)}`;
+    const baseLink = `cbwallet://miniapp?url=${APP}`;
     const fcLink =
       "https://farcaster.xyz/~/mini-apps/launch?domain=katty-paws-u4ng.vercel.app";
     return (
