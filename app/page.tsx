@@ -31,6 +31,7 @@ export default function Home() {
   const [booted, setBooted] = useState(false);
   const [inHost, setInHost] = useState(false);
   const [forcePlay, setForcePlay] = useState(false);
+  const [showHype, setShowHype] = useState(true);
   const [user, setUser] = useState<FcUser | null>(null);
   const [clientLabel, setClientLabel] = useState<string>("");
   const [screen, setScreen] = useState<Screen>("home");
@@ -463,6 +464,39 @@ export default function Home() {
           </button>
         ))}
       </nav>
+
+      {showHype && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6">
+          <div className="animate-pop relative w-full max-w-[330px] overflow-hidden rounded-3xl bg-gradient-to-b from-gold via-kitty to-[#EA580C] p-6 text-center shadow-2xl">
+            <button
+              onClick={() => setShowHype(false)}
+              aria-label="Close"
+              className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/25 text-lg font-bold text-white active:scale-90"
+            >
+              ✕
+            </button>
+            <div className="text-3xl">✨🏆✨</div>
+            <p className="mt-2 font-display text-sm font-bold uppercase tracking-widest text-white/80">
+              Prize Pool Live
+            </p>
+            <h2 className="mt-1 font-display text-4xl font-bold text-white drop-shadow">
+              $15 USDC
+            </h2>
+            <p className="mt-2 font-display text-lg font-semibold text-white">
+              Top 3 runners win <span className="underline">$5 each</span>
+            </p>
+            <div className="mt-4 rounded-2xl bg-white/20 px-4 py-2 text-sm font-semibold text-white">
+              🔒 Locked on-chain · {fmtTime(Number(timeLeft ?? 0))} left
+            </div>
+            <button
+              onClick={() => setShowHype(false)}
+              className="mt-5 w-full rounded-2xl bg-white py-3 font-display text-lg font-bold text-kitty shadow active:scale-[0.98]"
+            >
+              Let\u2019s run! 🐾
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
