@@ -79,25 +79,26 @@ export default function Home() {
     (async () => {
       try {
         const { sdk } = await import("@farcaster/miniapp-sdk");
+        // Official host detection — true inside ANY Farcaster host (Base App, Warpcast…)
         let inMini = false;
         try {
-          inMini = await Promise.race([
-            sdk.isInMiniApp(),
-            new Promise<boolean>((r) => setTimeout(() => r(false), 3000)),
+          inMini = await sdk.isInMiniApp();
+        } catch {}
+        let ctx: any = null;
+        try {
+          ctx = await Promise.race([
+            sdk.context,
+            new Promise((r) => setTimeout(() => r(null), 2000)),
           ]);
         } catch {}
-        const ctx: any = await Promise.race([
-          sdk.context,
-          new Promise((r) => setTimeout(() => r(null), 2000)),
-        ]);
+        const host = inMini || !!(ctx?.user || ctx?.client);
+        if (alive) setInHost(host);
         if (alive && ctx?.user) {
           setUser({ fid: ctx.user.fid, username: ctx.user.username, pfpUrl: ctx.user.pfpUrl });
         }
         const cf = ctx?.client?.clientFid;
         if (cf === 309857) setClientLabel("Base App");
         else if (cf) setClientLabel("Farcaster");
-        // Any of these means we are inside a real mini-app host (Base App or Farcaster).
-        if (alive && (inMini || ctx?.user || ctx?.client)) setInHost(true);
         sdk.actions.ready().catch(() => {});
       } catch {
         /* outside Farcaster — still render */
