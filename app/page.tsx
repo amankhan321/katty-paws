@@ -30,6 +30,7 @@ function fmtTime(secs: number) {
 export default function Home() {
   const [booted, setBooted] = useState(false);
   const [inHost, setInHost] = useState(false);
+  const [forcePlay, setForcePlay] = useState(false);
   const [user, setUser] = useState<FcUser | null>(null);
   const [clientLabel, setClientLabel] = useState<string>("");
   const [screen, setScreen] = useState<Screen>("home");
@@ -138,6 +139,11 @@ export default function Home() {
     });
   }, [pay, sub]);
 
+  const connectWallet = useCallback(() => {
+    const inj = connectors.find((c) => c.id === "injected");
+    connect({ connector: inHost ? connectors[0] : inj ?? connectors[0] });
+  }, [connect, connectors, inHost]);
+
   const onGameOver = useCallback(
     (r: RunResult) => {
       sub.reset();
@@ -200,7 +206,7 @@ export default function Home() {
   }
 
   // ---------- LAUNCH SCREEN (plain browser, not inside a host) ----------
-  if (!inHost) {
+  if (!inHost && !forcePlay) {
     const APP = "https://katty-paws-u4ng.vercel.app";
     const baseLink = `cbwallet://miniapp?url=${APP}`;
     const fcLink =
@@ -223,6 +229,12 @@ export default function Home() {
         >
           Open in Farcaster
         </a>
+        <button
+          onClick={() => setForcePlay(true)}
+          className="mt-3 w-full rounded-2xl bg-white/70 py-3 font-display text-base font-semibold text-ink/80 shadow active:scale-[0.98]"
+        >
+          Play in this browser →
+        </button>
         <p className="mt-6 text-xs text-ink/40">
           Tip: posting the link as a cast opens it as a tappable game card.
         </p>
@@ -354,7 +366,7 @@ export default function Home() {
             <section className="mt-6">
               {!isConnected ? (
                 <button
-                  onClick={() => connect({ connector: connectors[0] })}
+                  onClick={connectWallet}
                   className="w-full rounded-2xl bg-ink py-4 font-display text-lg font-semibold text-white shadow-md active:scale-[0.98]"
                 >
                   Connect Wallet
