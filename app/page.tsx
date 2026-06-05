@@ -466,8 +466,9 @@ export default function Home() {
       </nav>
 
       {showHype && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6">
-          <div className="animate-pop relative w-full max-w-[330px] overflow-hidden rounded-3xl bg-gradient-to-b from-gold via-kitty to-[#EA580C] p-6 text-center shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/60 px-6">
+          <SideFire />
+          <div className="animate-pop relative z-10 w-full max-w-[330px] overflow-hidden rounded-3xl bg-gradient-to-b from-gold via-kitty to-[#EA580C] p-6 text-center shadow-2xl">
             <button
               onClick={() => setShowHype(false)}
               aria-label="Close"
@@ -499,6 +500,29 @@ export default function Home() {
       )}
     </main>
   );
+}
+
+function SideFire() {
+  const colors = ["#F59E0B", "#F97316", "#FFD9B0", "#FCA5A5", "#ffffff", "#EA580C"];
+  const pieces = Array.from({ length: 26 }).map((_, i) => {
+    const side = i % 2 === 0 ? "left" : "right";
+    const idx = Math.floor(i / 2);
+    const angle = (idx / 13) * Math.PI - Math.PI / 2; // spread -90deg..+90deg
+    const dist = 200 + (idx % 4) * 45;
+    const tx = (side === "left" ? 1 : -1) * Math.abs(Math.cos(angle)) * dist;
+    const ty = Math.sin(angle) * dist;
+    const style: any = {
+      top: "50%",
+      "--tx": `${tx.toFixed(0)}px`,
+      "--ty": `${ty.toFixed(0)}px`,
+      "--rot": `${(i * 47) % 360}deg`,
+      background: colors[i % colors.length],
+      animationDelay: `${(i % 6) * 0.12}s`,
+    };
+    style[side] = "10px";
+    return <span key={i} className="confetti-piece" style={style} />;
+  });
+  return <>{pieces}</>;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
