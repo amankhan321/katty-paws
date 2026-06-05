@@ -503,23 +503,23 @@ export default function Home() {
 }
 
 function SideFire() {
-  const colors = ["#F59E0B", "#F97316", "#FFD9B0", "#FCA5A5", "#ffffff", "#EA580C"];
-  const pieces = Array.from({ length: 26 }).map((_, i) => {
+  const colors = ["#F59E0B", "#F97316", "#FFD9B0", "#FCA5A5", "#ffffff", "#EA580C", "#FDE68A"];
+  const pieces = Array.from({ length: 34 }).map((_, i) => {
     const side = i % 2 === 0 ? "left" : "right";
     const idx = Math.floor(i / 2);
-    const angle = (idx / 13) * Math.PI - Math.PI / 2; // spread -90deg..+90deg
-    const dist = 200 + (idx % 4) * 45;
-    const tx = (side === "left" ? 1 : -1) * Math.abs(Math.cos(angle)) * dist;
-    const ty = Math.sin(angle) * dist;
+    const spread = idx / 17; // 0..1
+    const tx = (side === "left" ? 1 : -1) * (30 + spread * 300); // shoot inward/across
+    const ty = -(240 + ((idx * 57) % 260)); // shoot UP
     const style: any = {
-      top: "50%",
+      bottom: "14%",
       "--tx": `${tx.toFixed(0)}px`,
       "--ty": `${ty.toFixed(0)}px`,
-      "--rot": `${(i * 47) % 360}deg`,
+      "--rot": `${(i * 61) % 360}deg`,
       background: colors[i % colors.length],
-      animationDelay: `${(i % 6) * 0.12}s`,
+      animationDelay: `${(i % 8) * 0.1}s`,
+      animationDuration: `${(1.4 + (i % 5) * 0.18).toFixed(2)}s`,
     };
-    style[side] = "10px";
+    style[side] = `${6 + (idx % 4) * 7}px`;
     return <span key={i} className="confetti-piece" style={style} />;
   });
   return <>{pieces}</>;
