@@ -22,7 +22,7 @@ import GameCanvas, { type RunResult } from "./GameCanvas";
 import { SKINS, skinColors } from "@/lib/skins";
 
 type Screen = "home" | "playing" | "over";
-type Tab = "play" | "daily" | "skins" | "leaderboard" | "profile";
+type Tab = "play" | "daily" | "skins" | "tasks" | "leaderboard" | "profile";
 const ZERO = "0x0000000000000000000000000000000000000000";
 type FcUser = { fid?: number; username?: string; pfpUrl?: string };
 
@@ -93,6 +93,13 @@ export default function Home() {
     address: DAILY_STREAK_ADDRESS,
     abi: dailyStreakAbi,
     functionName: "getStreak",
+    args: [(address ?? ZERO) as `0x${string}`],
+    query: { enabled: !!address && DAILY_STREAK_ADDRESS !== ZERO },
+  });
+  const { data: totalCheckIns } = useReadContract({
+    address: DAILY_STREAK_ADDRESS,
+    abi: dailyStreakAbi,
+    functionName: "totalCheckIns",
     args: [(address ?? ZERO) as `0x${string}`],
     query: { enabled: !!address && DAILY_STREAK_ADDRESS !== ZERO },
   });
@@ -662,6 +669,75 @@ export default function Home() {
           </div>
         )}
 
+        {tab === "tasks" &&
+          (() => {
+            const checkins = totalCheckIns ? Number(totalCheckIns) : 0;
+            const best = myBest ? Number(myBest) : 0;
+            const streakNow = streakData ? Number(streakData[0]) : 0;
+            let minted = 0;
+            const mask = skinMask ? (skinMask as bigint) : 0n;
+            for (let i = 1; i <= 5; i++) if (((mask >> BigInt(i)) & 1n) === 1n) minted++;
+            const tasks = [
+              { title: "First Paws", desc: "Check in for the first time", cur: checkins, target: 1 },
+              { title: "Loyal Kitty", desc: "Check in 7 times total", cur: checkins, target: 7 },
+              { title: "Devoted", desc: "Check in 30 times total", cur: checkins, target: 30 },
+              { title: "On a Roll", desc: "Reach a 3-day streak", cur: streakNow, target: 3 },
+              { title: "Warmed Up", desc: "Score 50 in a single run", cur: best, target: 50 },
+              { title: "Sharp Claws", desc: "Score 100 in a single run", cur: best, target: 100 },
+              { title: "Pro Runner", desc: "Score 200 in a single run", cur: best, target: 200 },
+              { title: "Dapper", desc: "Mint your first skin", cur: minted, target: 1 },
+              { title: "Collector", desc: "Own 3 skins", cur: minted, target: 3 },
+            ];
+            const doneCount = tasks.filter((t) => t.cur >= t.target).length;
+            return (
+              <div>
+                <h2 className="font-display text-xl font-bold text-ink">Quests 🎯</h2>
+                <p className="text-xs text-ink/50">
+                  Tracked from your real on-chain activity — {doneCount} of {tasks.length} complete.
+                </p>
+                {!isConnected && (
+                  <button
+                    onClick={connectWallet}
+                    className="mt-3 w-full rounded-2xl bg-ink py-3 font-display font-semibold text-white active:scale-[0.98]"
+                  >
+                    Connect Wallet
+                  </button>
+                )}
+                <div className="mt-4 space-y-3">
+                  {tasks.map((t, i) => {
+                    const done = t.cur >= t.target;
+                    const pct = Math.min(100, (t.cur / t.target) * 100);
+                    return (
+                      <div key={i} className="rounded-2xl bg-white/70 p-3 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-display text-sm font-bold text-ink">{t.title}</p>
+                            <p className="text-[11px] text-ink/50">{t.desc}</p>
+                          </div>
+                          {done ? (
+                            <span className="shrink-0 rounded-full bg-kitty px-2 py-1 text-[10px] font-bold text-white">
+                              Done ✓
+                            </span>
+                          ) : (
+                            <span className="shrink-0 text-xs font-semibold text-ink/50">
+                              {Math.min(t.cur, t.target)}/{t.target}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-2 h-2 w-full rounded-full bg-ink/10">
+                          <div className="h-2 rounded-full bg-gold" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="mt-3 text-center text-[11px] text-ink/40">
+                  Quests award badges, not tokens. Every metric is on-chain, so they can’t be faked.
+                </p>
+              </div>
+            );
+          })()}
+
         {tab === "leaderboard" && (
           <div>
             <h2 className="font-display text-xl font-bold text-ink">Top Cats 🏆</h2>
@@ -722,18 +798,19 @@ export default function Home() {
           ["play", "🐱", "Play"],
           ["daily", "🔥", "Daily"],
           ["skins", "🎨", "Skins"],
+          ["tasks", "🎯", "Quests"],
           ["leaderboard", "🏆", "Ranks"],
           ["profile", "👤", "Profile"],
         ] as [Tab, string, string][]).map(([t, icon, label]) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex flex-col items-center px-2.5 py-1 ${
+            className={`flex flex-col items-center px-1.5 py-1 ${
               tab === t ? "text-kitty" : "text-ink/45"
             }`}
           >
-            <span className="text-xl">{icon}</span>
-            <span className="font-display text-xs font-semibold">{label}</span>
+            <span className="text-lg">{icon}</span>
+            <span className="font-display text-[10px] font-semibold">{label}</span>
           </button>
         ))}
       </nav>
