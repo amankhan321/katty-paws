@@ -42,6 +42,8 @@ export default function Home() {
   const [booted, setBooted] = useState(false);
   const [inHost, setInHost] = useState(false);
   const [forcePlay, setForcePlay] = useState(false);
+  const [seedInfo, setSeedInfo] = useState<{ seed: number; token: string } | null>(null);
+  const [seedErr, setSeedErr] = useState(false);
   const [showHype, setShowHype] = useState(true);
   const [user, setUser] = useState<FcUser | null>(null);
   const [clientLabel, setClientLabel] = useState<string>("");
@@ -183,6 +185,8 @@ export default function Home() {
 
   useEffect(() => {
     if (payRcpt.isSuccess && screen !== "playing") {
+      setSeedInfo(null);
+      setSeedErr(false);
       setScreen("playing");
       pay.reset();
     }
@@ -228,6 +232,25 @@ export default function Home() {
 
   const effectiveSkin = ownsSkin(equipped) ? equipped : 0;
 
+  const fetchSeed = useCallback(async () => {
+    setSeedErr(false);
+    try {
+      const res = await fetch("/api/seed", { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok || typeof data.seed !== "number" || typeof data.token !== "string") {
+        setSeedErr(true);
+        return;
+      }
+      setSeedInfo({ seed: data.seed, token: data.token });
+    } catch {
+      setSeedErr(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (screen === "playing" && !seedInfo && !seedErr) fetchSeed();
+  }, [screen, seedInfo, seedErr, fetchSeed]);
+
   const onGameOver = useCallback(
     (r: RunResult) => {
       sub.reset();
@@ -239,7 +262,7 @@ export default function Home() {
   );
 
   const submitScore = useCallback(async () => {
-    if (!run || !address) return;
+    if (!run || !address || !seedInfo) return;
     // Only a higher score can save — block low submissions before any tx/revert.
     let prevBest = Number(myBest ?? 0n);
     try {
@@ -257,7 +280,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           walletAddress: address,
-          seed: run.seed,
+          token: seedInfo.token,
           inputs: run.inputs,
           score: run.score,
           cycleId: Number(cid),
@@ -279,7 +302,7 @@ export default function Home() {
     } catch {
       setSubmitMsg("Network error — try again");
     }
-  }, [run, address, cid, sub, refetchBest, myBest]);
+  }, [run, address, cid, sub, refetchBest, myBest, seedInfo]);
 
   if (!booted) {
     return (
@@ -330,8 +353,32 @@ export default function Home() {
   if (screen === "playing") {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col justify-center px-3">
-        <p className="mb-2 text-center text-sm text-ink/60">Tap to jump · tap twice to clear birds</p>
-        <GameCanvas onGameOver={onGameOver} skin={skinColors(effectiveSkin)} />
+        {seedInfo ? (
+          <>
+            <p className="mb-2 text-center text-sm text-ink/60">Tap to jump · tap twice to clear birds</p>
+            <GameCanvas
+              onGameOver={onGameOver}
+              skin={skinColors(effectiveSkin)}
+              seed={seedInfo.seed}
+            />
+          </>
+        ) : (
+          <div className="text-center">
+            {seedErr ? (
+              <>
+                <p className="mb-3 text-sm text-ink/70">Couldn’t start the run.</p>
+                <button
+                  onClick={fetchSeed}
+                  className="rounded-2xl bg-ink px-6 py-3 font-display font-bold text-white active:scale-[0.98]"
+                >
+                  Retry
+                </button>
+              </>
+            ) : (
+              <div className="animate-bob text-5xl">🐱</div>
+            )}
+          </div>
+        )}
       </main>
     );
   }

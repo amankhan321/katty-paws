@@ -15,7 +15,6 @@ import {
 } from "@/lib/sim";
 
 export type RunResult = {
-  seed: number;
   inputs: number[];
   score: number;
   ticks: number;
@@ -26,9 +25,11 @@ const STEP_MS = 1000 / 60;
 export default function GameCanvas({
   onGameOver,
   skin,
+  seed,
 }: {
   onGameOver: (r: RunResult) => void;
   skin: { body: string; dark: string; stripe: string; pink: string; belly: string };
+  seed: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const onGameOverRef = useRef(onGameOver);
@@ -42,7 +43,6 @@ export default function GameCanvas({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const seed = (Date.now() ^ (Math.random() * 1e9)) | 0;
     const state: GameState = createGame(seed);
     const inputs: number[] = [];
     let jumpQueued = false;
@@ -369,7 +369,7 @@ export default function GameCanvas({
       if (!state.alive) {
         if (!done) {
           done = true;
-          onGameOverRef.current({ seed, inputs, score: scoreOf(state), ticks: state.tick });
+          onGameOverRef.current({ inputs, score: scoreOf(state), ticks: state.tick });
         }
         return;
       }

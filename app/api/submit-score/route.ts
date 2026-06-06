@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { keccak256, encodePacked, isAddress, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { replay, scoreOf, createGame, step } from "@/lib/sim";
+import { verifySeed } from "@/lib/seedToken";
 
 export const runtime = "nodejs";
 
@@ -16,14 +17,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Signer not configured" }, { status: 500 });
     }
     const body = await req.json();
-    const { walletAddress, seed, inputs, score, cycleId } = body ?? {};
+    const { walletAddress, token, inputs, score, cycleId } = body ?? {};
 
     if (!isAddress(walletAddress)) {
       return NextResponse.json({ error: "Bad wallet" }, { status: 400 });
     }
-    if (typeof seed !== "number" || !Array.isArray(inputs)) {
+    if (!Array.isArray(inputs)) {
       return NextResponse.json({ error: "Bad run data" }, { status: 400 });
     }
+    // The seed must be one WE issued (signed) and not expired. The client can't
+    // pick or forge it.
+    const ticket = verifySeed(token);
+    if (!ticket) {
+      return NextResponse.json({ error: "Invalid or expired run" }, { status: 400 });
+    }
+    const seed = ticket.seed;
     const claimed = Number(score);
     const cid = BigInt(cycleId);
 
@@ -45,6 +53,21 @@ export async function POST(req: NextRequest) {
     while (probe.alive && probe.tick < 60000) step(probe, set.has(probe.tick + 1));
     if (probe.tick < 30 || serverScore <= 0) {
       return NextResponse.json({ error: "Run too short" }, { status: 400 });
+    }
+
+    // Real-time floor: a genuine run of N ticks takes N/60 seconds of wall clock.
+    // A bot that computes a long run offline submits it almost instantly, so
+    // reject anything that comes back faster than the run could be played.
+    const STEP_MS = 1000 / 60;
+    const minPlayMs = probe.tick * STEP_MS * 0.8;
+    const elapsedMs = Date.now() - ticket.issuedAt;
+    if (elapsedMs < minPlayMs) {
+      return NextResponse.json({ error: "Run submitted too fast" }, { status: 400 });
+    }
+
+    // Can't jump more times than there were ticks.
+    if (jumpTicks.length > probe.tick + 5) {
+      return NextResponse.json({ error: "Impossible inputs" }, { status: 400 });
     }
 
     const finalScore = BigInt(serverScore);
