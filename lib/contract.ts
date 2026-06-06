@@ -108,7 +108,7 @@ export const dailyStreakAbi = [
 
 // ── Skins contract (deploy KattySkins.sol, paste address) ──
 export const KATTY_SKINS_ADDRESS: `0x${string}` =
-  "0x0000000000000000000000000000000000000000"; // REPLACE AFTER DEPLOY
+  "0xAD41153aFaE674cccDcF7545b4854093AA4885c0";
 
 export const kattySkinsAbi = [
   {
