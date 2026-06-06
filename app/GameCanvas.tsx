@@ -342,35 +342,51 @@ export default function GameCanvas({
       ctx.save();
       ctx.translate(sx, sy);
 
-      // coins (pulsing + sparkle)
+      // coins (sticker style: white ring + dark halo so they pop on any background)
       for (const c of state.coins) {
         if (c.taken) continue;
         const ph = state.tick * 0.15 + c.x * 0.05;
         const pr = c.r * (1 + 0.12 * Math.sin(ph));
-        ctx.fillStyle = "rgba(245,158,11,0.25)";
+        // dark halo for separation
+        ctx.fillStyle = "rgba(0,0,0,0.20)";
         ctx.beginPath();
-        ctx.arc(c.x, c.y, pr + 4, 0, Math.PI * 2);
+        ctx.arc(c.x, c.y, pr + 5, 0, Math.PI * 2);
         ctx.fill();
+        // white outline ring
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, pr + 3, 0, Math.PI * 2);
+        ctx.fill();
+        // gold body
         ctx.beginPath();
         ctx.arc(c.x, c.y, pr, 0, Math.PI * 2);
-        ctx.fillStyle = "#F8B72B";
+        ctx.fillStyle = "#FFC42E";
         ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = "#B45309";
+        // dark rim
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = "#8A4B0A";
         ctx.stroke();
-        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        // inner ring detail
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "rgba(255,255,255,0.6)";
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, pr * 0.55, 0, Math.PI * 2);
+        ctx.stroke();
+        // shine dot
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
         ctx.beginPath();
         ctx.arc(c.x - 2.5 + Math.cos(ph) * 2, c.y - 2.5, 2, 0, Math.PI * 2);
         ctx.fill();
+        // sparkle
         const spk = (Math.sin(ph * 1.7) + 1) / 2;
         ctx.globalAlpha = spk;
-        ctx.strokeStyle = "rgba(255,255,255,0.9)";
+        ctx.strokeStyle = "rgba(255,255,255,0.95)";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(c.x + pr + 2, c.y);
-        ctx.lineTo(c.x + pr + 6, c.y);
-        ctx.moveTo(c.x, c.y - pr - 2);
-        ctx.lineTo(c.x, c.y - pr - 6);
+        ctx.moveTo(c.x + pr + 4, c.y);
+        ctx.lineTo(c.x + pr + 8, c.y);
+        ctx.moveTo(c.x, c.y - pr - 4);
+        ctx.lineTo(c.x, c.y - pr - 8);
         ctx.stroke();
         ctx.globalAlpha = 1;
       }
