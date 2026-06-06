@@ -43,6 +43,12 @@ export default function GameCanvas({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Render at device resolution so the larger canvas stays crisp.
+    const dpr = Math.min(2, (typeof window !== "undefined" ? window.devicePixelRatio : 1) || 1);
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
     const state: GameState = createGame(seed);
     const inputs: number[] = [];
     let jumpQueued = false;
@@ -522,7 +528,7 @@ export default function GameCanvas({
       ref={canvasRef}
       width={W}
       height={H}
-      className="w-full touch-none rounded-3xl shadow-md"
+      className="w-full touch-none rounded-2xl shadow-lg"
       style={{ aspectRatio: `${W} / ${H}` }}
     />
   );

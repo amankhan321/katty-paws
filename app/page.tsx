@@ -359,7 +359,7 @@ export default function Home() {
   // ---------- PLAYING ----------
   if (screen === "playing") {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col justify-center px-3">
+      <main className="mx-auto flex min-h-screen w-full max-w-[520px] flex-col justify-center px-2">
         {seedInfo ? (
           <>
             <p className="mb-2 text-center text-sm text-ink/60">Tap to jump · tap twice to clear birds</p>
