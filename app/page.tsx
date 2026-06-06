@@ -448,7 +448,7 @@ export default function Home() {
     : -1;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col px-5 pb-24 pt-6">
+    <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col px-5 pb-28 pt-6">
       <header className="flex items-center justify-between">
         <h1 className="font-display text-3xl font-bold text-kitty">Katty Paws</h1>
         <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-bold text-ink shadow-sm">
@@ -687,6 +687,11 @@ export default function Home() {
               { title: "Pro Runner", desc: "Score 200 in a single run", cur: best, target: 200 },
               { title: "Dapper", desc: "Mint your first skin", cur: minted, target: 1 },
               { title: "Collector", desc: "Own 3 skins", cur: minted, target: 3 },
+              { title: "Iron Streak", desc: "Reach a 7-day streak", cur: streakNow, target: 7 },
+              { title: "Veteran", desc: "Check in 60 times total", cur: checkins, target: 60 },
+              { title: "Untouchable", desc: "Score 350 in a single run", cur: best, target: 350 },
+              { title: "Full Wardrobe", desc: "Own all 5 skins", cur: minted, target: 5 },
+              { title: "Legend", desc: "Score 500 in a single run", cur: best, target: 500 },
             ];
             const doneCount = tasks.filter((t) => t.cur >= t.target).length;
             return (
@@ -793,7 +798,7 @@ export default function Home() {
       </div>
 
       {/* BOTTOM NAV */}
-      <nav className="fixed inset-x-0 bottom-0 mx-auto flex w-full max-w-[390px] items-center justify-around border-t border-black/5 bg-cream/90 py-2 backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-4 z-20 mx-auto flex w-[calc(100%-1.5rem)] max-w-[366px] items-center justify-between rounded-[26px] border border-black/5 bg-white/90 px-1.5 py-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.14)] backdrop-blur">
         {([
           ["play", "🐱", "Play"],
           ["daily", "🔥", "Daily"],
@@ -801,18 +806,21 @@ export default function Home() {
           ["tasks", "🎯", "Quests"],
           ["leaderboard", "🏆", "Ranks"],
           ["profile", "👤", "Profile"],
-        ] as [Tab, string, string][]).map(([t, icon, label]) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex flex-col items-center px-1.5 py-1 ${
-              tab === t ? "text-kitty" : "text-ink/45"
-            }`}
-          >
-            <span className="text-lg">{icon}</span>
-            <span className="font-display text-[10px] font-semibold">{label}</span>
-          </button>
-        ))}
+        ] as [Tab, string, string][]).map(([t, icon, label]) => {
+          const on = tab === t;
+          return (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`flex flex-1 flex-col items-center gap-0.5 rounded-[20px] py-1.5 transition-all ${
+                on ? "bg-kitty/15 text-kitty" : "text-ink/40"
+              }`}
+            >
+              <span className={`text-lg transition-transform ${on ? "scale-110" : ""}`}>{icon}</span>
+              <span className="font-display text-[10px] font-semibold">{label}</span>
+            </button>
+          );
+        })}
       </nav>
 
       {showHype && (

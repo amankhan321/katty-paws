@@ -50,6 +50,25 @@ export default function GameCanvas({
     let last = performance.now();
     let raf = 0;
     let done = false;
+    type P = { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number; g: number };
+    const parts: P[] = [];
+    const pops: { x: number; y: number; life: number; text: string }[] = [];
+    let shake = 0;
+    let prevCoins = 0;
+    let dispScore = 0;
+    let scorePulse = 0;
+    let deathFrames = -1;
+    const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+    const burst = (x: number, y: number, n: number, colors: string[], spd: number, g: number) => {
+      for (let i = 0; i < n; i++) {
+        const ang = rnd(0, Math.PI * 2);
+        const sp = rnd(spd * 0.3, spd);
+        parts.push({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: 1, max: rnd(0.5, 1), color: colors[(Math.random() * colors.length) | 0], size: rnd(2, 4.5), g });
+      }
+    };
+    const dust = (x: number, y: number) => {
+      for (let i = 0; i < 5; i++) parts.push({ x: x + rnd(-4, 4), y, vx: rnd(-1.2, -0.2), vy: rnd(-1.6, -0.2), life: 1, max: 0.5, color: "rgba(180,150,110,0.9)", size: rnd(2, 3.5), g: 0.05 });
+    };
 
     const queueJump = () => {
       jumpQueued = true;
@@ -265,20 +284,64 @@ export default function GameCanvas({
       // trees + lamps (foreground parallax)
       drawTrees(ctx, state.tick * 1.5, GROUND);
 
-      // coins
+      // speed lines (subtle sense of motion, grows with speed)
+      const slN = Math.min(5, Math.max(0, state.speed - 4));
+      if (slN > 0) {
+        ctx.strokeStyle = "rgba(255,255,255,0.22)";
+        ctx.lineWidth = 2;
+        for (let i = 0; i < slN; i++) {
+          const yy = 24 + ((i * 89) % (GROUND - 60));
+          const xx = ((((i * 130 - state.tick * (state.speed + 8)) % (W + 80)) + (W + 80)) % (W + 80)) - 40;
+          ctx.beginPath();
+          ctx.moveTo(xx, yy);
+          ctx.lineTo(xx + 26, yy);
+          ctx.stroke();
+        }
+      }
+
+      // foreground gameplay jolts on impact
+      let sx = 0;
+      let sy = 0;
+      if (shake > 0) {
+        sx = (Math.random() - 0.5) * shake;
+        sy = (Math.random() - 0.5) * shake;
+        shake *= 0.85;
+        if (shake < 0.4) shake = 0;
+      }
+      ctx.save();
+      ctx.translate(sx, sy);
+
+      // coins (pulsing + sparkle)
       for (const c of state.coins) {
         if (c.taken) continue;
+        const ph = state.tick * 0.15 + c.x * 0.05;
+        const pr = c.r * (1 + 0.12 * Math.sin(ph));
+        ctx.fillStyle = "rgba(245,158,11,0.25)";
         ctx.beginPath();
-        ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
-        ctx.fillStyle = "#F59E0B";
+        ctx.arc(c.x, c.y, pr + 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, pr, 0, Math.PI * 2);
+        ctx.fillStyle = "#F8B72B";
         ctx.fill();
         ctx.lineWidth = 2;
         ctx.strokeStyle = "#B45309";
         ctx.stroke();
-        ctx.fillStyle = "rgba(255,255,255,0.7)";
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
         ctx.beginPath();
-        ctx.arc(c.x - 2.5, c.y - 2.5, 2, 0, Math.PI * 2);
+        ctx.arc(c.x - 2.5 + Math.cos(ph) * 2, c.y - 2.5, 2, 0, Math.PI * 2);
         ctx.fill();
+        const spk = (Math.sin(ph * 1.7) + 1) / 2;
+        ctx.globalAlpha = spk;
+        ctx.strokeStyle = "rgba(255,255,255,0.9)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(c.x + pr + 2, c.y);
+        ctx.lineTo(c.x + pr + 6, c.y);
+        ctx.moveTo(c.x, c.y - pr - 2);
+        ctx.lineTo(c.x, c.y - pr - 6);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
       }
 
       // obstacles (high contrast so they never blend into the warm scene)
@@ -346,10 +409,64 @@ export default function GameCanvas({
 
       drawCat();
 
-      // HUD score
+      // particles + floating "+5" pops (inside the shake group)
+      for (const pt of parts) {
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        pt.vy += pt.g;
+        pt.life -= (1 / 60) / pt.max;
+      }
+      for (let i = parts.length - 1; i >= 0; i--) if (parts[i].life <= 0) parts.splice(i, 1);
+      for (const pp of pops) {
+        pp.y -= 0.8;
+        pp.life -= 0.02;
+      }
+      for (let i = pops.length - 1; i >= 0; i--) if (pops[i].life <= 0) pops.splice(i, 1);
+      for (const pt of parts) {
+        ctx.globalAlpha = Math.max(0, pt.life);
+        ctx.fillStyle = pt.color;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      ctx.font = "bold 16px Fredoka, system-ui, sans-serif";
+      for (const pp of pops) {
+        ctx.globalAlpha = Math.max(0, pp.life);
+        ctx.fillStyle = "#F59E0B";
+        ctx.fillText(pp.text, pp.x, pp.y);
+      }
+      ctx.globalAlpha = 1;
+      ctx.restore();
+
+      // HUD score (animated, fixed — outside the shake)
+      const real = scoreOf(state);
+      if (real > dispScore) {
+        dispScore = real;
+        scorePulse = 1;
+      }
+      scorePulse *= 0.88;
+      ctx.save();
+      ctx.font = "bold 26px Fredoka, system-ui, sans-serif";
+      const pillTxt = `${real}`;
+      const tw = ctx.measureText(pillTxt).width;
+      ctx.fillStyle = "rgba(255,255,255,0.82)";
+      roundRect(ctx, 12, 12, tw + 54, 38, 19);
+      ctx.fill();
+      ctx.fillStyle = "#F8B72B";
+      ctx.beginPath();
+      ctx.arc(34, 31, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#B45309";
+      ctx.stroke();
+      const scp = 1 + 0.28 * Math.max(0, scorePulse);
+      ctx.translate(56, 32);
+      ctx.scale(scp, scp);
       ctx.fillStyle = "#1C1C1E";
-      ctx.font = "bold 24px Fredoka, system-ui, sans-serif";
-      ctx.fillText(String(scoreOf(state)), 14, 34);
+      ctx.textBaseline = "middle";
+      ctx.fillText(pillTxt, 0, 0);
+      ctx.restore();
     }
 
     function loop(now: number) {
@@ -361,6 +478,12 @@ export default function GameCanvas({
         jumpQueued = false;
         step(state, j);
         if (j) inputs.push(state.tick);
+        if (state.coinsCollected > prevCoins) {
+          pops.push({ x: CAT_X + CAT_W, y: state.catY + 4, life: 1, text: "+5" });
+          burst(CAT_X + CAT_W, state.catY + 8, 8, ["#FFD56B", "#F59E0B", "#ffffff"], 3, 0.08);
+          prevCoins = state.coinsCollected;
+        }
+        if (j && state.jumps === 1) dust(CAT_X + CAT_W / 2, GROUND - 2);
         acc -= STEP_MS;
         steps++;
         if (!state.alive) break;
@@ -368,8 +491,17 @@ export default function GameCanvas({
       draw();
       if (!state.alive) {
         if (!done) {
-          done = true;
-          onGameOverRef.current({ inputs, score: scoreOf(state), ticks: state.tick });
+          if (deathFrames < 0) {
+            deathFrames = 28;
+            shake = 18;
+            burst(CAT_X + CAT_W / 2, state.catY + CAT_H / 2, 28, ["#F97316", "#FF5A36", "#FFD56B", "#ffffff"], 6.5, 0.2);
+          } else if (deathFrames === 0) {
+            done = true;
+            onGameOverRef.current({ inputs, score: scoreOf(state), ticks: state.tick });
+            return;
+          }
+          deathFrames--;
+          raf = requestAnimationFrame(loop);
         }
         return;
       }
