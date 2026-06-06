@@ -105,3 +105,34 @@ export const dailyStreakAbi = [
     outputs: [{ type: "uint256" }],
   },
 ] as const;
+
+// ── Skins contract (deploy KattySkins.sol, paste address) ──
+export const KATTY_SKINS_ADDRESS: `0x${string}` =
+  "0x0000000000000000000000000000000000000000"; // REPLACE AFTER DEPLOY
+
+export const kattySkinsAbi = [
+  {
+    type: "function",
+    name: "mint",
+    stateMutability: "payable",
+    inputs: [{ name: "id", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "ownedMask",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "owns",
+    stateMutability: "view",
+    inputs: [
+      { name: "user", type: "address" },
+      { name: "id", type: "uint256" },
+    ],
+    outputs: [{ type: "bool" }],
+  },
+] as const;

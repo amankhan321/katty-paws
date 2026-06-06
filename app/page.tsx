@@ -15,11 +15,14 @@ import {
   kattyPawsAbi,
   DAILY_STREAK_ADDRESS,
   dailyStreakAbi,
+  KATTY_SKINS_ADDRESS,
+  kattySkinsAbi,
 } from "@/lib/contract";
 import GameCanvas, { type RunResult } from "./GameCanvas";
+import { SKINS, skinColors } from "@/lib/skins";
 
 type Screen = "home" | "playing" | "over";
-type Tab = "play" | "daily" | "leaderboard" | "profile";
+type Tab = "play" | "daily" | "skins" | "leaderboard" | "profile";
 const ZERO = "0x0000000000000000000000000000000000000000";
 type FcUser = { fid?: number; username?: string; pfpUrl?: string };
 
@@ -93,6 +96,53 @@ export default function Home() {
   });
   const chk = useWriteContract();
   const chkRcpt = useWaitForTransactionReceipt({ hash: chk.data });
+
+  const [equipped, setEquipped] = useState(0);
+  useEffect(() => {
+    const e =
+      typeof window !== "undefined" ? window.localStorage.getItem("katty_skin") : null;
+    if (e != null) setEquipped(Number(e) || 0);
+  }, []);
+  const { data: skinMask, refetch: refetchSkins } = useReadContract({
+    address: KATTY_SKINS_ADDRESS,
+    abi: kattySkinsAbi,
+    functionName: "ownedMask",
+    args: [(address ?? ZERO) as `0x${string}`],
+    query: { enabled: !!address && KATTY_SKINS_ADDRESS !== ZERO },
+  });
+  const mintSkin = useWriteContract();
+  const mintRcpt = useWaitForTransactionReceipt({ hash: mintSkin.data });
+  useEffect(() => {
+    if (mintRcpt.isSuccess) refetchSkins();
+  }, [mintRcpt.isSuccess, refetchSkins]);
+
+  const ownsSkin = useCallback(
+    (id: number) => {
+      if (id === 0) return true;
+      const m = skinMask ? (skinMask as bigint) : 0n;
+      return ((m >> BigInt(id)) & 1n) === 1n;
+    },
+    [skinMask]
+  );
+  const equip = useCallback((id: number) => {
+    setEquipped(id);
+    try {
+      window.localStorage.setItem("katty_skin", String(id));
+    } catch {}
+  }, []);
+  const doMint = useCallback(
+    (id: number, priceWei: bigint) => {
+      mintSkin.writeContract({
+        address: KATTY_SKINS_ADDRESS,
+        abi: kattySkinsAbi,
+        functionName: "mint",
+        args: [BigInt(id)],
+        value: priceWei,
+        dataSuffix: BUILDER_SUFFIX,
+      });
+    },
+    [mintSkin]
+  );
 
   useEffect(() => {
     let alive = true;
@@ -175,6 +225,8 @@ export default function Home() {
       dataSuffix: BUILDER_SUFFIX,
     });
   }, [chk]);
+
+  const effectiveSkin = ownsSkin(equipped) ? equipped : 0;
 
   const onGameOver = useCallback(
     (r: RunResult) => {
@@ -279,7 +331,7 @@ export default function Home() {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col justify-center px-3">
         <p className="mb-2 text-center text-sm text-ink/60">Tap to jump · tap twice to clear birds</p>
-        <GameCanvas onGameOver={onGameOver} />
+        <GameCanvas onGameOver={onGameOver} skin={skinColors(effectiveSkin)} />
       </main>
     );
   }
@@ -493,6 +545,76 @@ export default function Home() {
           </div>
         )}
 
+        {tab === "skins" && (
+          <div>
+            <h2 className="font-display text-xl font-bold text-ink">Cat Skins 🎨</h2>
+            <p className="text-xs text-ink/50">
+              Unlock cosmetic skins on-chain and equip one to change your runner. Classic is free.
+            </p>
+            {KATTY_SKINS_ADDRESS === ZERO && (
+              <p className="mt-3 rounded-2xl bg-white/70 p-3 text-center text-sm text-ink/60">
+                Minting goes live once the skins contract is deployed.
+              </p>
+            )}
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {SKINS.map((sknn) => {
+                const owned = ownsSkin(sknn.id);
+                const isEquipped = effectiveSkin === sknn.id;
+                return (
+                  <div key={sknn.id} className="rounded-2xl bg-white/70 p-3 text-center shadow-sm">
+                    <div className="flex justify-center">
+                      <SkinPreview c={sknn.colors} />
+                    </div>
+                    <p className="mt-1 font-display text-sm font-bold text-ink">{sknn.name}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-ink/40">
+                      {sknn.rarity}
+                    </p>
+                    {owned ? (
+                      isEquipped ? (
+                        <div className="mt-2 rounded-xl bg-kitty py-2 text-xs font-bold text-white">
+                          Equipped ✓
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => equip(sknn.id)}
+                          className="mt-2 w-full rounded-xl bg-ink py-2 text-xs font-bold text-white active:scale-[0.98]"
+                        >
+                          Equip
+                        </button>
+                      )
+                    ) : !isConnected ? (
+                      <button
+                        onClick={connectWallet}
+                        className="mt-2 w-full rounded-xl bg-ink/80 py-2 text-xs font-bold text-white"
+                      >
+                        Connect
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => doMint(sknn.id, sknn.priceWei)}
+                        disabled={
+                          KATTY_SKINS_ADDRESS === ZERO ||
+                          mintSkin.isPending ||
+                          mintRcpt.isLoading
+                        }
+                        className="mt-2 w-full rounded-xl bg-gold py-2 text-xs font-bold text-white active:scale-[0.98] disabled:opacity-60"
+                      >
+                        Mint · {sknn.priceLabel}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {mintSkin.error && (
+              <p className="mt-2 text-center text-sm text-red-600">Mint failed — try again</p>
+            )}
+            <p className="mt-3 text-center text-[11px] text-ink/40">
+              Skins are cosmetic on-chain unlocks (not tradeable). Each mint carries the builder code.
+            </p>
+          </div>
+        )}
+
         {tab === "leaderboard" && (
           <div>
             <h2 className="font-display text-xl font-bold text-ink">Top Cats 🏆</h2>
@@ -552,13 +674,14 @@ export default function Home() {
         {([
           ["play", "🐱", "Play"],
           ["daily", "🔥", "Daily"],
+          ["skins", "🎨", "Skins"],
           ["leaderboard", "🏆", "Ranks"],
           ["profile", "👤", "Profile"],
         ] as [Tab, string, string][]).map(([t, icon, label]) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex flex-col items-center px-4 py-1 ${
+            className={`flex flex-col items-center px-2.5 py-1 ${
               tab === t ? "text-kitty" : "text-ink/45"
             }`}
           >
@@ -602,6 +725,30 @@ export default function Home() {
         </div>
       )}
     </main>
+  );
+}
+
+function SkinPreview({
+  c,
+}: {
+  c: { body: string; dark: string; stripe: string; pink: string; belly: string };
+}) {
+  return (
+    <svg viewBox="0 0 64 64" className="h-16 w-16">
+      <path d="M14 40 Q6 30 12 22" stroke={c.body} strokeWidth="6" fill="none" strokeLinecap="round" />
+      <ellipse cx="34" cy="40" rx="18" ry="13" fill={c.body} />
+      <ellipse cx="34" cy="44" rx="11" ry="7" fill={c.belly} />
+      <path d="M30 30 L28 50 M37 29 L35 51 M44 31 L43 49" stroke={c.stripe} strokeWidth="2.2" fill="none" strokeLinecap="round" />
+      <circle cx="46" cy="28" r="12" fill={c.body} />
+      <path d="M38 20 L36 9 L46 17 Z" fill={c.body} />
+      <path d="M54 20 L56 9 L46 17 Z" fill={c.body} />
+      <path d="M40 18 L39 12 L45 16 Z" fill={c.pink} />
+      <path d="M52 18 L53 12 L47 16 Z" fill={c.pink} />
+      <circle cx="51" cy="30" r="4.5" fill={c.belly} />
+      <circle cx="48" cy="27" r="2" fill="#1C1C1E" />
+      <circle cx="48.6" cy="26.2" r="0.7" fill="#fff" />
+      <path d="M53 30 L57 29 L55 33 Z" fill={c.pink} />
+    </svg>
   );
 }
 

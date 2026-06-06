@@ -25,12 +25,16 @@ const STEP_MS = 1000 / 60;
 
 export default function GameCanvas({
   onGameOver,
+  skin,
 }: {
   onGameOver: (r: RunResult) => void;
+  skin: { body: string; dark: string; stripe: string; pink: string; belly: string };
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const onGameOverRef = useRef(onGameOver);
   onGameOverRef.current = onGameOver;
+  const skinRef = useRef(skin);
+  skinRef.current = skin;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -71,10 +75,11 @@ export default function GameCanvas({
       const y = state.catY + bob;
       const t = state.tick;
 
-      const ORANGE = "#F97316";
-      const DARK = "#E2670F";
-      const STRIPE = "#C2540C";
-      const PINK = "#FCA5A5";
+      const sk = skinRef.current;
+      const ORANGE = sk.body;
+      const DARK = sk.dark;
+      const STRIPE = sk.stripe;
+      const PINK = sk.pink;
 
       // ground shadow (shrinks as the cat jumps higher)
       const off = Math.max(0, GROUND - CAT_H - state.catY);
@@ -174,7 +179,7 @@ export default function GameCanvas({
       ear(hx + 2, hx + 4);
 
       // cheek + eye + nose + whiskers
-      ctx.fillStyle = "#FFD9B0";
+      ctx.fillStyle = sk.belly;
       ctx.beginPath();
       ctx.arc(hx + 4, hy + 4, 6, 0, Math.PI * 2);
       ctx.fill();
