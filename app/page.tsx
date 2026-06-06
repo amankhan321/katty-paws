@@ -813,7 +813,7 @@ export default function Home() {
               key={t}
               onClick={() => setTab(t)}
               className={`flex flex-1 flex-col items-center gap-0.5 rounded-[20px] py-1.5 transition-all ${
-                on ? "bg-kitty/15 text-kitty" : "text-ink/40"
+                on ? "bg-kitty/20 text-kitty shadow-sm" : "text-ink/60"
               }`}
             >
               <span className={`text-lg transition-transform ${on ? "scale-110" : ""}`}>{icon}</span>

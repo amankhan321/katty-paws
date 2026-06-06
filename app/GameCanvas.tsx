@@ -61,6 +61,7 @@ export default function GameCanvas({
     const pops: { x: number; y: number; life: number; text: string }[] = [];
     let shake = 0;
     let prevCoins = 0;
+    let prevShield = false;
     let dispScore = 0;
     let scorePulse = 0;
     let deathFrames = -1;
@@ -270,21 +271,45 @@ export default function GameCanvas({
       cloud(((span - cs + 120) % span) - 40, 150, 0.95);
 
       // far hazy skyline + warm mid buildings
-      drawBand(ctx, state.tick * 0.6, 70, GROUND, 70, ["#AFC9DE", "#BCD3E5", "#A7C2D8"], false);
-      drawBand(ctx, state.tick * 1.15, 150, GROUND, 62, ["#E6C094", "#D4A276", "#C89068", "#EBD2AC"], true);
+      drawBand(ctx, state.tick * 0.55, 150, GROUND, 66, ["#9FB4CE", "#AEC0D6", "#93A9C6"], false);
+      drawCity(ctx, state.tick * 1.15, GROUND);
 
       // ---- GROUND ----
-      const gnd = ctx.createLinearGradient(0, GROUND, 0, H);
-      gnd.addColorStop(0, "#E7B681");
-      gnd.addColorStop(1, "#D49E62");
-      ctx.fillStyle = gnd;
-      ctx.fillRect(0, GROUND, W, H - GROUND);
-      ctx.fillStyle = "#C98C52";
-      ctx.fillRect(0, GROUND, W, 5);
-      ctx.fillStyle = "rgba(255,242,218,0.6)";
+      // sidewalk (the strip the cat runs on)
+      ctx.fillStyle = "#CDBB9D";
+      ctx.fillRect(0, GROUND, W, 14);
+      ctx.strokeStyle = "rgba(120,100,70,0.35)";
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 14; i++) {
+        const sx = ((((i * 46 - state.tick * state.speed) % 560) + 560) % 560) - 40;
+        ctx.beginPath();
+        ctx.moveTo(sx, GROUND);
+        ctx.lineTo(sx, GROUND + 14);
+        ctx.stroke();
+      }
+      // curb
+      ctx.fillStyle = "#9C8A6B";
+      ctx.fillRect(0, GROUND + 14, W, 4);
+      // asphalt road below
+      const road = ctx.createLinearGradient(0, GROUND + 18, 0, H);
+      road.addColorStop(0, "#4A4F5A");
+      road.addColorStop(1, "#373B44");
+      ctx.fillStyle = road;
+      ctx.fillRect(0, GROUND + 18, W, H - GROUND - 18);
+      // asphalt speckle / manholes
+      ctx.fillStyle = "rgba(0,0,0,0.18)";
+      for (let i = 0; i < 6; i++) {
+        const mx = ((((i * 130 - state.tick * (state.speed + 2)) % 780) + 780) % 780) - 60;
+        ctx.beginPath();
+        ctx.ellipse(mx, GROUND + 18 + (H - GROUND - 18) * 0.78, 9, 3.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // center lane dashes
+      ctx.fillStyle = "rgba(255,214,102,0.9)";
+      const midY = GROUND + 18 + (H - GROUND - 18) / 2 - 2;
       for (let i = 0; i < 10; i++) {
-        const dx = ((((i * 52 - state.tick * state.speed) % 520) + 520) % 520) - 20;
-        ctx.fillRect(dx, GROUND + 24, 26, 5);
+        const dx = ((((i * 60 - state.tick * (state.speed + 2)) % 600) + 600) % 600) - 30;
+        ctx.fillRect(dx, midY, 30, 5);
       }
 
       // trees + lamps (foreground parallax)
@@ -415,6 +440,33 @@ export default function GameCanvas({
 
       drawCat();
 
+      // shield bubble (inside the shake group, around the cat)
+      if (state.shieldTicks > 0) {
+        const sxm = CAT_X + CAT_W / 2;
+        const sym = state.catY + CAT_H / 2;
+        const tleft = state.shieldTicks / 300;
+        const pr2 = 32 + Math.sin(state.tick * 0.4) * 2;
+        ctx.fillStyle = "rgba(99,179,255,0.16)";
+        ctx.beginPath();
+        ctx.arc(sxm, sym, pr2 + 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(120,190,255,0.5)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sxm, sym, pr2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = "#3F9CFF";
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(sxm, sym, pr2, -Math.PI / 2, -Math.PI / 2 + tleft * Math.PI * 2);
+        ctx.stroke();
+        const oa = state.tick * 0.25;
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(sxm + Math.cos(oa) * pr2, sym + Math.sin(oa) * pr2, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
       // particles + floating "+5" pops (inside the shake group)
       for (const pt of parts) {
         pt.x += pt.vx;
@@ -473,6 +525,30 @@ export default function GameCanvas({
       ctx.textBaseline = "middle";
       ctx.fillText(pillTxt, 0, 0);
       ctx.restore();
+
+      // combo pips / shield countdown (top-right)
+      if (state.shieldTicks > 0) {
+        const secs = Math.ceil(state.shieldTicks / 60);
+        ctx.font = "bold 14px Fredoka, system-ui, sans-serif";
+        const label = `SHIELD ${secs}s`;
+        const lw = ctx.measureText(label).width;
+        ctx.fillStyle = "rgba(63,156,255,0.95)";
+        roundRect(ctx, W - lw - 32, 14, lw + 20, 28, 14);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, W - lw - 22, 29);
+        ctx.textBaseline = "alphabetic";
+      } else {
+        const gap = 9;
+        const startX = W - 12 - gap * 9;
+        for (let i = 0; i < 10; i++) {
+          ctx.beginPath();
+          ctx.arc(startX + i * gap, 24, 3.2, 0, Math.PI * 2);
+          ctx.fillStyle = i < state.combo ? "#F8B72B" : "rgba(0,0,0,0.13)";
+          ctx.fill();
+        }
+      }
     }
 
     function loop(now: number) {
@@ -490,6 +566,11 @@ export default function GameCanvas({
           prevCoins = state.coinsCollected;
         }
         if (j && state.jumps === 1) dust(CAT_X + CAT_W / 2, GROUND - 2);
+        if (state.shieldTicks > 0 && !prevShield) {
+          pops.push({ x: CAT_X + CAT_W / 2 - 18, y: state.catY - 6, life: 1.6, text: "SHIELD!" });
+          burst(CAT_X + CAT_W / 2, state.catY + CAT_H / 2, 24, ["#63B3FF", "#A0D8FF", "#ffffff", "#4DA3FF"], 5, 0.05);
+        }
+        prevShield = state.shieldTicks > 0;
         acc -= STEP_MS;
         steps++;
         if (!state.alive) break;
@@ -569,6 +650,64 @@ function drawBand(
           if (hashB(wi * 131 + r * 17 + c) % 5 === 0) continue;
           ctx.fillRect(x + 8 + c * 16, top + 12 + r * 22, 9, 11);
         }
+      }
+    }
+  }
+}
+
+function drawCity(ctx: CanvasRenderingContext2D, offset: number, groundY: number) {
+  const tw = 60;
+  const start = Math.floor(offset / tw);
+  const n = Math.ceil(700 / tw) + 2;
+  const pal = ["#7E8AA0", "#9AA0AE", "#B0743F", "#C98A5A", "#8895AE", "#6E7A92"];
+  for (let i = -1; i < n; i++) {
+    const wi = start + i;
+    const x = i * tw - (offset % tw);
+    const tall = hashB(wi) % 5 === 0;
+    const hh = (tall ? 150 : 64) + (hashB(wi * 7) % (tall ? 120 : 70));
+    const bw = tw - 8 - (hashB(wi * 5) % 8);
+    const top = groundY - hh;
+    const col = pal[hashB(wi * 13) % pal.length];
+    ctx.fillStyle = col;
+    ctx.fillRect(x, top, bw, hh);
+    // shaded right edge for depth
+    ctx.fillStyle = "rgba(0,0,0,0.10)";
+    ctx.fillRect(x + bw - 5, top, 5, hh);
+    // roof detail
+    if (tall) {
+      const sbw = bw * 0.6;
+      const sbh = 28 + (hashB(wi * 3) % 28);
+      ctx.fillStyle = col;
+      ctx.fillRect(x + (bw - sbw) / 2, top - sbh, sbw, sbh);
+      ctx.strokeStyle = "#5B6470";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x + bw / 2, top - sbh);
+      ctx.lineTo(x + bw / 2, top - sbh - 22);
+      ctx.stroke();
+      ctx.fillStyle = "#E2483C";
+      ctx.beginPath();
+      ctx.arc(x + bw / 2, top - sbh - 22, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (hashB(wi * 9) % 3 === 0) {
+      // rooftop water tank
+      ctx.fillStyle = "#6B4A2B";
+      ctx.fillRect(x + bw / 2 - 6, top - 11, 12, 11);
+      ctx.beginPath();
+      ctx.moveTo(x + bw / 2 - 7, top - 11);
+      ctx.lineTo(x + bw / 2, top - 17);
+      ctx.lineTo(x + bw / 2 + 7, top - 11);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // windows
+    const cols = Math.max(2, Math.floor(bw / 12));
+    const rows = Math.floor(hh / 16);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const lit = hashB(wi * 131 + r * 7 + c) % 4 !== 0;
+        ctx.fillStyle = lit ? "rgba(255,244,206,0.85)" : "rgba(40,50,70,0.32)";
+        ctx.fillRect(x + 5 + c * 12, top + 8 + r * 16, 7, 9);
       }
     }
   }

@@ -6,7 +6,7 @@
 
 export type Kind = 0 | 1 | 2; // 0 wall, 1 barrel, 2 bird
 export type Obstacle = { x: number; w: number; h: number; y: number; kind: Kind };
-export type Coin = { x: number; y: number; r: number; taken: boolean };
+export type Coin = { x: number; y: number; r: number; taken: boolean; missed: boolean };
 
 export type GameState = {
   tick: number;
@@ -18,6 +18,8 @@ export type GameState = {
   coins: Coin[];
   nextSpawn: number;
   coinsCollected: number;
+  combo: number;       // consecutive coins collected toward the shield
+  shieldTicks: number; // ticks of obstacle immunity remaining
   speed: number;
   alive: boolean;
 };
@@ -54,6 +56,8 @@ export function createGame(seed: number): GameState {
     coins: [],
     nextSpawn: 60,
     coinsCollected: 0,
+    combo: 0,
+    shieldTicks: 0,
     speed: 4,
     alive: true,
   };
@@ -64,6 +68,7 @@ export function step(s: GameState, jump: boolean): GameState {
   if (!s.alive) return s;
   s.tick++;
   s.speed = 4 + Math.floor(s.tick / 600); // ramps every 10s @60fps
+  if (s.shieldTicks > 0) s.shieldTicks--;
 
   if (jump) {
     const onGround = s.catY >= GROUND - CAT_H - 0.5;
@@ -103,7 +108,7 @@ export function step(s: GameState, jump: boolean): GameState {
     [r2, s.rngState] = rng(s.rngState);
     if (r2 < 0.7) {
       const cy = GROUND - 72 - Math.floor(r2 * 46);
-      s.coins.push({ x: W + 110, y: cy, r: 9, taken: false });
+      s.coins.push({ x: W + 110, y: cy, r: 9, taken: false, missed: false });
     }
 
     let g: number;
@@ -116,21 +121,35 @@ export function step(s: GameState, jump: boolean): GameState {
     cy = s.catY,
     cw = CAT_W,
     ch = CAT_H;
-  for (const o of s.obstacles) {
-    if (cx < o.x + o.w && cx + cw > o.x && cy < o.y + o.h && cy + ch > o.y) {
-      s.alive = false;
+
+  // Obstacles can't hurt the cat while the shield is up.
+  if (s.shieldTicks <= 0) {
+    for (const o of s.obstacles) {
+      if (cx < o.x + o.w && cx + cw > o.x && cy < o.y + o.h && cy + ch > o.y) {
+        s.alive = false;
+      }
     }
   }
+
   for (const c of s.coins) {
-    if (
-      !c.taken &&
+    if (c.taken) continue;
+    const hit =
       cx < c.x + c.r &&
       cx + cw > c.x - c.r &&
       cy < c.y + c.r &&
-      cy + ch > c.y - c.r
-    ) {
+      cy + ch > c.y - c.r;
+    if (hit) {
       c.taken = true;
       s.coinsCollected++;
+      s.combo++;
+      if (s.combo >= 10) {
+        s.combo = 0;
+        s.shieldTicks = 300; // 5s of immunity @60fps
+      }
+    } else if (!c.missed && c.x + c.r < cx) {
+      // a coin slipped past uncollected — the streak breaks
+      c.missed = true;
+      s.combo = 0;
     }
   }
   return s;
