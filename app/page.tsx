@@ -573,7 +573,7 @@ export default function Home() {
     : -1;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col px-5 pb-28 pt-6">
+    <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col px-5 pb-32 pt-6">
       <header className="flex items-center justify-between">
         <h1 className="font-display text-3xl font-bold text-kitty">Katty Paws</h1>
         <div className="flex items-center gap-2">
@@ -955,29 +955,60 @@ export default function Home() {
       </div>
 
       {/* BOTTOM NAV */}
-      <nav className="fixed inset-x-0 bottom-4 z-20 mx-auto flex w-[calc(100%-1.5rem)] max-w-[366px] items-center justify-between rounded-[26px] border border-black/5 bg-white/90 px-1.5 py-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.14)] backdrop-blur">
-        {([
-          ["play", "🐱", "Play"],
-          ["daily", "🔥", "Daily"],
-          ["skins", "🎨", "Skins"],
-          ["tasks", "🎯", "Quests"],
-          ["leaderboard", "🏆", "Ranks"],
-          ["profile", "👤", "Profile"],
-        ] as [Tab, string, string][]).map(([t, icon, label]) => {
-          const on = tab === t;
-          return (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex flex-1 flex-col items-center gap-0.5 rounded-[20px] py-1.5 transition-all ${
-                on ? "bg-kitty/20 text-kitty shadow-sm" : "text-ink/60"
-              }`}
-            >
-              <span className={`text-lg transition-transform ${on ? "scale-110" : ""}`}>{icon}</span>
-              <span className="font-display text-[10px] font-semibold">{label}</span>
-            </button>
-          );
-        })}
+      <nav className="fixed inset-x-0 bottom-4 z-20 mx-auto flex w-[calc(100%-1.5rem)] max-w-[380px] items-end justify-between rounded-[26px] border border-black/5 bg-white/90 px-2 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.14)] backdrop-blur">
+        <div className="flex flex-1 justify-around">
+          {([
+            ["daily", "🔥", "Daily"],
+            ["skins", "🎨", "Skins"],
+          ] as [Tab, string, string][]).map(([t, icon, label]) => {
+            const on = tab === t;
+            return (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`flex flex-col items-center gap-0.5 rounded-[18px] px-2 py-1.5 transition-all ${
+                  on ? "bg-kitty/20 text-kitty" : "text-ink/55"
+                }`}
+              >
+                <span className={`text-lg transition-transform ${on ? "scale-110" : ""}`}>{icon}</span>
+                <span className="font-display text-[10px] font-semibold">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={() => setTab("play")}
+          aria-label="Play"
+          className={`-mt-9 flex flex-col items-center gap-0.5 rounded-2xl border border-white/15 bg-gradient-to-b from-zinc-700 to-black px-7 py-3 text-white ring-2 transition-all shadow-[0_6px_0_#000,0_12px_22px_rgba(0,0,0,0.45)] active:translate-y-1 active:shadow-[0_3px_0_#000,0_6px_12px_rgba(0,0,0,0.4)] ${
+            tab === "play" ? "ring-white/40" : "ring-white/10"
+          }`}
+        >
+          <span className="text-2xl leading-none">🐱</span>
+          <span className="font-display text-xs font-extrabold tracking-wider">PLAY</span>
+        </button>
+
+        <div className="flex flex-1 justify-around">
+          {([
+            ["tasks", "🎯", "Quests"],
+            ["leaderboard", "🏆", "Ranks"],
+            ["profile", "👤", "Profile"],
+          ] as [Tab, string, string][]).map(([t, icon, label]) => {
+            const on = tab === t;
+            return (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`flex flex-col items-center gap-0.5 rounded-[18px] px-2 py-1.5 transition-all ${
+                  on ? "bg-kitty/20 text-kitty" : "text-ink/55"
+                }`}
+              >
+                <span className={`text-lg transition-transform ${on ? "scale-110" : ""}`}>{icon}</span>
+                <span className="font-display text-[10px] font-semibold">{label}</span>
+              </button>
+            );
+          })}
+        </div>
       </nav>
 
       {showHype && (
