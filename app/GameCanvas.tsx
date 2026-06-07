@@ -2,6 +2,15 @@
 
 import { useEffect, useRef } from "react";
 import {
+  unlock,
+  startMusic,
+  stopMusic,
+  sfxJump,
+  sfxCoin,
+  sfxShield,
+  sfxDie,
+} from "@/lib/audio";
+import {
   createGame,
   step,
   scoreOf,
@@ -88,6 +97,8 @@ export default function GameCanvas({
 
     const queueJump = () => {
       jumpQueued = true;
+      unlock();
+      sfxJump();
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Space" || e.code === "ArrowUp") {
@@ -595,12 +606,14 @@ export default function GameCanvas({
           if (mode !== "turbo")
             pops.push({ x: CAT_X + CAT_W, y: state.catY + 4, life: 1, text: "+5" });
           burst(CAT_X + CAT_W, state.catY + 8, 8, ["#FFD56B", "#F59E0B", "#ffffff"], 3, 0.08);
+          sfxCoin();
           prevCoins = state.coinsCollected;
         }
         if (j && state.jumps === 1) dust(CAT_X + CAT_W / 2, GROUND - 2);
         if (state.shieldTicks > 0 && !prevShield) {
           pops.push({ x: CAT_X + CAT_W / 2 - 18, y: state.catY - 6, life: 1.6, text: "SHIELD!" });
           burst(CAT_X + CAT_W / 2, state.catY + CAT_H / 2, 24, ["#63B3FF", "#A0D8FF", "#ffffff", "#4DA3FF"], 5, 0.05);
+          sfxShield();
         }
         prevShield = state.shieldTicks > 0;
         acc -= STEP_MS;
@@ -613,6 +626,7 @@ export default function GameCanvas({
           if (deathFrames < 0) {
             deathFrames = 28;
             shake = 18;
+            sfxDie();
             burst(CAT_X + CAT_W / 2, state.catY + CAT_H / 2, 28, ["#F97316", "#FF5A36", "#FFD56B", "#ffffff"], 6.5, 0.2);
           } else if (deathFrames === 0) {
             done = true;
@@ -630,9 +644,11 @@ export default function GameCanvas({
       }
       raf = requestAnimationFrame(loop);
     }
+    startMusic();
     raf = requestAnimationFrame(loop);
 
     return () => {
+      stopMusic();
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", onKey);
       canvas.removeEventListener("pointerdown", onPointer);

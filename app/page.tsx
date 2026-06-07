@@ -20,6 +20,7 @@ import {
 } from "@/lib/contract";
 import GameCanvas, { type RunResult } from "./GameCanvas";
 import { SKINS, skinColors } from "@/lib/skins";
+import { isMuted, setMuted } from "@/lib/audio";
 
 type Screen = "home" | "playing" | "over";
 type Tab = "play" | "daily" | "skins" | "tasks" | "leaderboard" | "profile";
@@ -47,6 +48,7 @@ export default function Home() {
   const [gameMode, setGameMode] = useState<"prize" | "turbo">("prize");
   const [turboSeed, setTurboSeed] = useState(0);
   const [turboBest, setTurboBest] = useState(0);
+  const [muted, setMutedState] = useState(false);
   const [showHype, setShowHype] = useState(true);
   const [user, setUser] = useState<FcUser | null>(null);
   const [clientLabel, setClientLabel] = useState<string>("");
@@ -120,6 +122,11 @@ export default function Home() {
     const t =
       typeof window !== "undefined" ? window.localStorage.getItem("katty_turbo_best") : null;
     if (t != null) setTurboBest(Number(t) || 0);
+  }, []);
+  useEffect(() => {
+    const m = isMuted();
+    setMutedState(m);
+    setMuted(m);
   }, []);
   const { data: skinMask, refetch: refetchSkins } = useReadContract({
     address: KATTY_SKINS_ADDRESS,
@@ -283,6 +290,21 @@ export default function Home() {
     });
   }, [isConnected, connectWallet, pay, sub]);
 
+  const toggleMute = () => {
+    const m = !muted;
+    setMutedState(m);
+    setMuted(m);
+  };
+  const muteBtn = (
+    <button
+      onClick={toggleMute}
+      aria-label="Toggle sound"
+      className="fixed right-3 top-3 z-30 rounded-full bg-white/85 px-2.5 py-1.5 text-base shadow-md active:scale-95"
+    >
+      {muted ? "🔇" : "🔊"}
+    </button>
+  );
+
   const fetchSeed = useCallback(async () => {
     setSeedErr(false);
     try {
@@ -414,6 +436,7 @@ export default function Home() {
     if (gameMode === "turbo") {
       return (
         <main className="mx-auto flex min-h-screen w-full max-w-[520px] flex-col justify-center px-2">
+          {muteBtn}
           <p className="mb-2 text-center text-sm text-ink/60">
             ⚡ Turbo · faster with every skin · tap to jump
           </p>
@@ -430,6 +453,7 @@ export default function Home() {
     }
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-[520px] flex-col justify-center px-2">
+        {muteBtn}
         {seedInfo ? (
           <>
             <p className="mb-2 text-center text-sm text-ink/60">Tap to jump · tap twice to clear birds</p>
@@ -552,9 +576,18 @@ export default function Home() {
     <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col px-5 pb-28 pt-6">
       <header className="flex items-center justify-between">
         <h1 className="font-display text-3xl font-bold text-kitty">Katty Paws</h1>
-        <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-bold text-ink shadow-sm">
-          {timeLeft !== undefined ? fmtTime(Number(timeLeft)) + " left" : "Base"}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleMute}
+            aria-label="Toggle sound"
+            className="rounded-full bg-white/70 px-2.5 py-1 text-sm shadow-sm active:scale-95"
+          >
+            {muted ? "🔇" : "🔊"}
+          </button>
+          <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-bold text-ink shadow-sm">
+            {timeLeft !== undefined ? fmtTime(Number(timeLeft)) + " left" : "Base"}
+          </span>
+        </div>
       </header>
 
       {/* Profile card (always visible) */}
