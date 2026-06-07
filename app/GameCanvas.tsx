@@ -342,41 +342,40 @@ export default function GameCanvas({
       ctx.save();
       ctx.translate(sx, sy);
 
-      // coins (amber "paw" token with a shiny glow)
+      // coins (amber paw token: chunky, white ring + bright glow = pops on any bg)
       for (const c of state.coins) {
         if (c.taken) continue;
-        const ph = state.tick * 0.15 + c.x * 0.05;
-        const pr = c.r * (1 + 0.1 * Math.sin(ph));
-        // shiny radial glow behind the coin
-        const glow = ctx.createRadialGradient(c.x, c.y, pr * 0.3, c.x, c.y, pr + 13);
-        glow.addColorStop(0, "rgba(255,228,130,0.6)");
-        glow.addColorStop(0.5, "rgba(255,201,64,0.32)");
-        glow.addColorStop(1, "rgba(255,201,64,0)");
+        const ph = state.tick * 0.18 + c.x * 0.05;
+        const vr = c.r * 1.28 * (1 + 0.08 * Math.sin(ph)); // chunkier than the hitbox
+        // bright near-white glow (separates even on warm buildings)
+        const glow = ctx.createRadialGradient(c.x, c.y, vr * 0.2, c.x, c.y, vr + 13);
+        glow.addColorStop(0, "rgba(255,246,205,0.7)");
+        glow.addColorStop(0.45, "rgba(255,208,80,0.36)");
+        glow.addColorStop(1, "rgba(255,208,80,0)");
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(c.x, c.y, pr + 13, 0, Math.PI * 2);
+        ctx.arc(c.x, c.y, vr + 13, 0, Math.PI * 2);
         ctx.fill();
-        // coin body — dark-yellow gradient for a 3D look
-        const body = ctx.createLinearGradient(c.x, c.y - pr, c.x, c.y + pr);
+        // white sticker ring — the real separator from the background
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, vr + 3, 0, Math.PI * 2);
+        ctx.fill();
+        // amber body
+        const body = ctx.createLinearGradient(c.x, c.y - vr, c.x, c.y + vr);
         body.addColorStop(0, "#FFD24A");
         body.addColorStop(1, "#D98A0B");
         ctx.fillStyle = body;
         ctx.beginPath();
-        ctx.arc(c.x, c.y, pr, 0, Math.PI * 2);
+        ctx.arc(c.x, c.y, vr, 0, Math.PI * 2);
         ctx.fill();
-        // dark rim (keeps it readable on busy backgrounds)
-        ctx.lineWidth = 2.5;
+        // crisp dark rim
+        ctx.lineWidth = 2;
         ctx.strokeStyle = "#8A4B0A";
         ctx.stroke();
-        // inner ring
-        ctx.lineWidth = 1.2;
-        ctx.strokeStyle = "rgba(255,240,200,0.5)";
-        ctx.beginPath();
-        ctx.arc(c.x, c.y, pr * 0.74, 0, Math.PI * 2);
-        ctx.stroke();
         // paw-print emblem
-        const u = pr * 0.2;
-        ctx.fillStyle = "#8A4B0A";
+        const u = vr * 0.2;
+        ctx.fillStyle = "#7A3F08";
         ctx.beginPath();
         ctx.ellipse(c.x, c.y + u * 1.2, u * 1.7, u * 1.35, 0, 0, Math.PI * 2);
         ctx.fill();
@@ -392,9 +391,9 @@ export default function GameCanvas({
           ctx.fill();
         }
         // top-left shine
-        ctx.fillStyle = "rgba(255,255,255,0.7)";
+        ctx.fillStyle = "rgba(255,255,255,0.8)";
         ctx.beginPath();
-        ctx.arc(c.x - pr * 0.35, c.y - pr * 0.4, pr * 0.22, 0, Math.PI * 2);
+        ctx.arc(c.x - vr * 0.35, c.y - vr * 0.42, vr * 0.22, 0, Math.PI * 2);
         ctx.fill();
       }
 
