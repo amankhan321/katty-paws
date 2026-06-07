@@ -977,16 +977,24 @@ export default function Home() {
           })}
         </div>
 
-        <button
-          onClick={() => setTab("play")}
-          aria-label="Play"
-          className={`-mt-9 flex flex-col items-center gap-0.5 rounded-2xl border border-white/15 bg-gradient-to-b from-zinc-700 to-black px-7 py-3 text-white ring-2 transition-all shadow-[0_6px_0_#000,0_12px_22px_rgba(0,0,0,0.45)] active:translate-y-1 active:shadow-[0_3px_0_#000,0_6px_12px_rgba(0,0,0,0.4)] ${
-            tab === "play" ? "ring-white/40" : "ring-white/10"
-          }`}
-        >
-          <span className="text-2xl leading-none">🐱</span>
-          <span className="font-display text-xs font-extrabold tracking-wider">PLAY</span>
-        </button>
+        <div className="flex flex-col items-center">
+          <button
+            onClick={() => setTab("play")}
+            aria-label="Play"
+            className={`-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-zinc-700 to-zinc-950 text-2xl text-white ring-2 transition-all shadow-[0_5px_14px_rgba(0,0,0,0.4)] active:scale-95 ${
+              tab === "play" ? "ring-kitty/70" : "ring-white/20"
+            }`}
+          >
+            🐱
+          </button>
+          <span
+            className={`mt-0.5 font-display text-[10px] font-semibold ${
+              tab === "play" ? "text-kitty" : "text-ink/55"
+            }`}
+          >
+            Play
+          </span>
+        </div>
 
         <div className="flex flex-1 justify-around">
           {([
