@@ -44,6 +44,9 @@ export default function Home() {
   const [forcePlay, setForcePlay] = useState(false);
   const [seedInfo, setSeedInfo] = useState<{ seed: number; token: string } | null>(null);
   const [seedErr, setSeedErr] = useState(false);
+  const [gameMode, setGameMode] = useState<"prize" | "turbo">("prize");
+  const [turboSeed, setTurboSeed] = useState(0);
+  const [turboBest, setTurboBest] = useState(0);
   const [showHype, setShowHype] = useState(true);
   const [user, setUser] = useState<FcUser | null>(null);
   const [clientLabel, setClientLabel] = useState<string>("");
@@ -111,6 +114,11 @@ export default function Home() {
     const e =
       typeof window !== "undefined" ? window.localStorage.getItem("katty_skin") : null;
     if (e != null) setEquipped(Number(e) || 0);
+  }, []);
+  useEffect(() => {
+    const t =
+      typeof window !== "undefined" ? window.localStorage.getItem("katty_turbo_best") : null;
+    if (t != null) setTurboBest(Number(t) || 0);
   }, []);
   const { data: skinMask, refetch: refetchSkins } = useReadContract({
     address: KATTY_SKINS_ADDRESS,
@@ -192,6 +200,7 @@ export default function Home() {
 
   useEffect(() => {
     if (payRcpt.isSuccess && screen !== "playing") {
+      setGameMode("prize");
       setSeedInfo(null);
       setSeedErr(false);
       setScreen("playing");
@@ -239,6 +248,24 @@ export default function Home() {
 
   const effectiveSkin = ownsSkin(equipped) ? equipped : 0;
 
+  const skinsOwned = (() => {
+    const m = skinMask ? (skinMask as bigint) : 0n;
+    let n = 0;
+    for (let i = 1; i <= 5; i++) if (((m >> BigInt(i)) & 1n) === 1n) n++;
+    return n;
+  })();
+  const turboBaseSpeed = 4 + skinsOwned * 0.8; // each owned skin = faster start
+  const turboRampTicks = 460;
+
+  const startTurbo = useCallback(() => {
+    sub.reset();
+    setSubmitMsg("");
+    setRun(null);
+    setGameMode("turbo");
+    setTurboSeed((Date.now() ^ (Math.random() * 1e9)) | 0);
+    setScreen("playing");
+  }, [sub]);
+
   const fetchSeed = useCallback(async () => {
     setSeedErr(false);
     try {
@@ -263,9 +290,18 @@ export default function Home() {
       sub.reset();
       setSubmitMsg("");
       setRun(r);
+      if (gameMode === "turbo") {
+        setTurboBest((b) => {
+          const nb = Math.max(b, r.score);
+          try {
+            window.localStorage.setItem("katty_turbo_best", String(nb));
+          } catch {}
+          return nb;
+        });
+      }
       setScreen("over");
     },
-    [sub]
+    [sub, gameMode]
   );
 
   const submitScore = useCallback(async () => {
@@ -358,6 +394,23 @@ export default function Home() {
 
   // ---------- PLAYING ----------
   if (screen === "playing") {
+    if (gameMode === "turbo") {
+      return (
+        <main className="mx-auto flex min-h-screen w-full max-w-[520px] flex-col justify-center px-2">
+          <p className="mb-2 text-center text-sm text-ink/60">
+            ⚡ Turbo · faster with every skin · tap to jump
+          </p>
+          <GameCanvas
+            onGameOver={onGameOver}
+            skin={skinColors(effectiveSkin)}
+            seed={turboSeed}
+            mode="turbo"
+            baseSpeed={turboBaseSpeed}
+            rampTicks={turboRampTicks}
+          />
+        </main>
+      );
+    }
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-[520px] flex-col justify-center px-2">
         {seedInfo ? (
@@ -392,6 +445,37 @@ export default function Home() {
 
   // ---------- GAME OVER ----------
   if (screen === "over" && run) {
+    if (gameMode === "turbo") {
+      return (
+        <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col items-center justify-center px-5">
+          <div className="animate-pop w-full rounded-3xl bg-white/80 p-6 text-center shadow-md">
+            <div className="text-5xl">⚡</div>
+            <h2 className="mt-2 font-display text-2xl font-bold text-ink">Turbo run!</h2>
+            <p className="mt-4 font-display text-5xl font-bold text-kitty">{run.score}</p>
+            <p className="text-sm text-ink/60">distance · best {turboBest}</p>
+            <button
+              onClick={startTurbo}
+              className="mt-6 w-full rounded-2xl bg-kitty py-3 font-display text-lg font-bold text-white shadow active:scale-[0.98]"
+            >
+              Turbo again ⚡
+            </button>
+            <button
+              onClick={() => {
+                setGameMode("prize");
+                setScreen("home");
+                setTab("play");
+              }}
+              className="mt-3 w-full rounded-2xl bg-ink py-3 font-display text-lg font-bold text-white shadow active:scale-[0.98]"
+            >
+              Back
+            </button>
+            <p className="mt-3 text-[11px] text-ink/50">
+              Own more skins to start faster and beat your distance.
+            </p>
+          </div>
+        </main>
+      );
+    }
     const saving = sub.isPending || subRcpt.isLoading;
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col items-center justify-center px-5">
@@ -523,6 +607,18 @@ export default function Home() {
               )}
               <p className="mt-3 text-center text-[11px] text-ink/50">
                 ~$0.003 play fee on Base · powered by player fees 🐱
+              </p>
+            </section>
+            <section className="mt-3">
+              <button
+                onClick={startTurbo}
+                className="w-full rounded-2xl bg-ink/90 py-3 font-display text-base font-bold text-white shadow active:scale-[0.98]"
+              >
+                ⚡ Turbo Run — free
+              </button>
+              <p className="mt-2 text-center text-[11px] text-ink/50">
+                No prize, pure speed. Start speed {turboBaseSpeed.toFixed(1)} · own more skins to go faster
+                {turboBest > 0 ? ` · best ${turboBest}` : ""}
               </p>
             </section>
           </div>

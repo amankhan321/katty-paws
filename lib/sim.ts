@@ -22,6 +22,9 @@ export type GameState = {
   shieldTicks: number; // ticks of obstacle immunity remaining
   speed: number;
   alive: boolean;
+  distance: number;   // total ground covered (turbo score basis)
+  baseSpeed: number;  // starting speed (turbo scales this with skins)
+  rampTicks: number;  // ticks per +1 speed (lower = ramps faster)
 };
 
 // Logical canvas dims (CSS-scaled to device width).
@@ -45,7 +48,12 @@ function rng(state: number): readonly [number, number] {
   return [v, (state + 0x6d2b79f5) | 0];
 }
 
-export function createGame(seed: number): GameState {
+export function createGame(
+  seed: number,
+  opts?: { baseSpeed?: number; rampTicks?: number }
+): GameState {
+  const baseSpeed = opts?.baseSpeed ?? 4;
+  const rampTicks = opts?.rampTicks ?? 600;
   return {
     tick: 0,
     rngState: seed | 0,
@@ -58,8 +66,11 @@ export function createGame(seed: number): GameState {
     coinsCollected: 0,
     combo: 0,
     shieldTicks: 0,
-    speed: 4,
+    speed: baseSpeed,
     alive: true,
+    distance: 0,
+    baseSpeed,
+    rampTicks,
   };
 }
 
@@ -67,7 +78,8 @@ export function createGame(seed: number): GameState {
 export function step(s: GameState, jump: boolean): GameState {
   if (!s.alive) return s;
   s.tick++;
-  s.speed = 4 + Math.floor(s.tick / 600); // ramps every 10s @60fps
+  s.speed = s.baseSpeed + Math.floor(s.tick / s.rampTicks);
+  s.distance += s.speed;
   if (s.shieldTicks > 0) s.shieldTicks--;
 
   if (jump) {

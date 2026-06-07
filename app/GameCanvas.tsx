@@ -26,10 +26,16 @@ export default function GameCanvas({
   onGameOver,
   skin,
   seed,
+  mode = "prize",
+  baseSpeed,
+  rampTicks,
 }: {
   onGameOver: (r: RunResult) => void;
   skin: { body: string; dark: string; stripe: string; pink: string; belly: string };
   seed: number;
+  mode?: "prize" | "turbo";
+  baseSpeed?: number;
+  rampTicks?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const onGameOverRef = useRef(onGameOver);
@@ -49,7 +55,10 @@ export default function GameCanvas({
     canvas.height = H * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const state: GameState = createGame(seed);
+    const state: GameState = createGame(
+      seed,
+      mode === "turbo" ? { baseSpeed, rampTicks } : undefined
+    );
     const inputs: number[] = [];
     let jumpQueued = false;
     let acc = 0;
@@ -520,7 +529,7 @@ export default function GameCanvas({
       ctx.restore();
 
       // HUD score (animated, fixed — outside the shake)
-      const real = scoreOf(state);
+      const real = mode === "turbo" ? Math.floor(state.distance / 12) : scoreOf(state);
       if (real > dispScore) {
         dispScore = real;
         scorePulse = 1;
@@ -583,7 +592,8 @@ export default function GameCanvas({
         step(state, j);
         if (j) inputs.push(state.tick);
         if (state.coinsCollected > prevCoins) {
-          pops.push({ x: CAT_X + CAT_W, y: state.catY + 4, life: 1, text: "+5" });
+          if (mode !== "turbo")
+            pops.push({ x: CAT_X + CAT_W, y: state.catY + 4, life: 1, text: "+5" });
           burst(CAT_X + CAT_W, state.catY + 8, 8, ["#FFD56B", "#F59E0B", "#ffffff"], 3, 0.08);
           prevCoins = state.coinsCollected;
         }
@@ -606,7 +616,11 @@ export default function GameCanvas({
             burst(CAT_X + CAT_W / 2, state.catY + CAT_H / 2, 28, ["#F97316", "#FF5A36", "#FFD56B", "#ffffff"], 6.5, 0.2);
           } else if (deathFrames === 0) {
             done = true;
-            onGameOverRef.current({ inputs, score: scoreOf(state), ticks: state.tick });
+            onGameOverRef.current({
+            inputs,
+            score: mode === "turbo" ? Math.floor(state.distance / 12) : scoreOf(state),
+            ticks: state.tick,
+          });
             return;
           }
           deathFrames--;
