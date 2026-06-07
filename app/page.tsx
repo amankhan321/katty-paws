@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import {
   useAccount,
   useConnect,
@@ -61,6 +61,7 @@ export default function Home() {
 
   const pay = useWriteContract();
   const payRcpt = useWaitForTransactionReceipt({ hash: pay.data });
+  const pendingModeRef = useRef<"prize" | "turbo">("prize");
   const sub = useWriteContract();
   const subRcpt = useWaitForTransactionReceipt({ hash: sub.data });
 
@@ -200,9 +201,14 @@ export default function Home() {
 
   useEffect(() => {
     if (payRcpt.isSuccess && screen !== "playing") {
-      setGameMode("prize");
-      setSeedInfo(null);
-      setSeedErr(false);
+      if (pendingModeRef.current === "turbo") {
+        setGameMode("turbo");
+        setTurboSeed((Date.now() ^ (Math.random() * 1e9)) | 0);
+      } else {
+        setGameMode("prize");
+        setSeedInfo(null);
+        setSeedErr(false);
+      }
       setScreen("playing");
       pay.reset();
     }
@@ -220,6 +226,7 @@ export default function Home() {
   }, [chkRcpt.isSuccess, refetchStreak]);
 
   const startPay = useCallback(() => {
+    pendingModeRef.current = "prize";
     setSubmitMsg("");
     sub.reset();
     pay.reset();
@@ -258,13 +265,23 @@ export default function Home() {
   const turboRampTicks = 460;
 
   const startTurbo = useCallback(() => {
-    sub.reset();
+    if (!isConnected) {
+      connectWallet();
+      return;
+    }
+    pendingModeRef.current = "turbo";
     setSubmitMsg("");
     setRun(null);
-    setGameMode("turbo");
-    setTurboSeed((Date.now() ^ (Math.random() * 1e9)) | 0);
-    setScreen("playing");
-  }, [sub]);
+    sub.reset();
+    pay.reset();
+    pay.writeContract({
+      address: KATTY_PAWS_ADDRESS,
+      abi: kattyPawsAbi,
+      functionName: "payToPlay",
+      value: PLAY_FEE,
+      dataSuffix: BUILDER_SUFFIX,
+    });
+  }, [isConnected, connectWallet, pay, sub]);
 
   const fetchSeed = useCallback(async () => {
     setSeedErr(false);
@@ -594,13 +611,18 @@ export default function Home() {
                   Connect Wallet
                 </button>
               ) : (
-                <button
-                  onClick={startPay}
-                  disabled={pay.isPending || payRcpt.isLoading}
-                  className="w-full rounded-2xl bg-kitty py-4 font-display text-lg font-bold text-white shadow-md active:scale-[0.98] disabled:opacity-60"
-                >
-                  {pay.isPending ? "Confirm in wallet…" : payRcpt.isLoading ? "Starting on Base…" : "Play Now 🐾"}
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={startPay}
+                    disabled={pay.isPending || payRcpt.isLoading}
+                    className="w-full rounded-2xl bg-kitty py-4 font-display text-lg font-bold text-white shadow-md active:scale-[0.98] disabled:opacity-60"
+                  >
+                    {pay.isPending ? "Confirm in wallet…" : payRcpt.isLoading ? "Starting on Base…" : "Play Now 🐾"}
+                  </button>
+                  <span className="absolute -top-2 right-4 rotate-6 rounded-full bg-emerald-500 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-md">
+                    win prize 🏆
+                  </span>
+                </div>
               )}
               {pay.error && (
                 <p className="mt-3 text-center text-sm text-red-600">Transaction needed to play 🐾</p>
@@ -610,14 +632,20 @@ export default function Home() {
               </p>
             </section>
             <section className="mt-3">
-              <button
-                onClick={startTurbo}
-                className="w-full rounded-2xl bg-ink/90 py-3 font-display text-base font-bold text-white shadow active:scale-[0.98]"
-              >
-                ⚡ Turbo Run — free
-              </button>
+              <div className="relative">
+                <button
+                  onClick={startTurbo}
+                  disabled={pay.isPending || payRcpt.isLoading}
+                  className="w-full rounded-2xl bg-ink/90 py-3 font-display text-base font-bold text-white shadow active:scale-[0.98] disabled:opacity-60"
+                >
+                  ⚡ Turbo Run
+                </button>
+                <span className="absolute -top-2 right-4 -rotate-6 rounded-full bg-sky-500 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-md">
+                  for fun
+                </span>
+              </div>
               <p className="mt-2 text-center text-[11px] text-ink/50">
-                No prize, pure speed. Start speed {turboBaseSpeed.toFixed(1)} · own more skins to go faster
+                Same tiny fee, no prize — pure speed. Start speed {turboBaseSpeed.toFixed(1)} · own more skins to go faster
                 {turboBest > 0 ? ` · best ${turboBest}` : ""}
               </p>
             </section>
