@@ -269,14 +269,11 @@ export default function Home() {
     setNotifMsg("");
     try {
       const { sdk } = await import("@farcaster/miniapp-sdk");
-      const res: any = await sdk.actions.addMiniApp();
-      // res.notificationDetails present means notifications got enabled
-      if (res?.notificationDetails || res?.added) {
-        setAdded(true);
-        setNotifMsg("Added! You'll get a nudge when your check-in is ready 🔔");
-      } else {
-        setNotifMsg("Couldn't enable — you can also add the app from the ··· menu.");
-      }
+      // Resolves on success (token is delivered to our webhook separately);
+      // throws if the user rejects or the manifest is invalid.
+      await sdk.actions.addMiniApp();
+      setAdded(true);
+      setNotifMsg("Added! You'll get a nudge when your check-in is ready 🔔");
     } catch {
       setNotifMsg("Open this inside the Base or Farcaster app to enable reminders.");
     } finally {
