@@ -9,6 +9,7 @@
     "name": "Katty Paws",
     "iconUrl": "https://katty-paws-u4ng.vercel.app/icon.png",
     "homeUrl": "https://katty-paws-u4ng.vercel.app",
+    "webhookUrl": "https://katty-paws-u4ng.vercel.app/api/webhook",
     "imageUrl": "https://katty-paws-u4ng.vercel.app/preview.png",
     "buttonTitle": "🐱 Play Katty Paws",
     "splashImageUrl": "https://katty-paws-u4ng.vercel.app/splash.png",

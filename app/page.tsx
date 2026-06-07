@@ -52,6 +52,9 @@ export default function Home() {
   const [showHype, setShowHype] = useState(true);
   const [user, setUser] = useState<FcUser | null>(null);
   const [clientLabel, setClientLabel] = useState<string>("");
+  const [added, setAdded] = useState(false);
+  const [notifMsg, setNotifMsg] = useState<string>("");
+  const [notifBusy, setNotifBusy] = useState(false);
   const [screen, setScreen] = useState<Screen>("home");
   const [tab, setTab] = useState<Tab>("play");
   const [run, setRun] = useState<RunResult | null>(null);
@@ -194,6 +197,7 @@ export default function Home() {
         const cf = ctx?.client?.clientFid;
         if (cf === 309857) setClientLabel("Base App");
         else if (cf) setClientLabel("Farcaster");
+        if (alive && ctx?.client?.added) setAdded(true);
         sdk.actions.ready().catch(() => {});
       } catch {
         /* outside Farcaster — still render */
@@ -259,6 +263,26 @@ export default function Home() {
       dataSuffix: BUILDER_SUFFIX,
     });
   }, [chk]);
+
+  const enableNotifs = useCallback(async () => {
+    setNotifBusy(true);
+    setNotifMsg("");
+    try {
+      const { sdk } = await import("@farcaster/miniapp-sdk");
+      const res: any = await sdk.actions.addMiniApp();
+      // res.notificationDetails present means notifications got enabled
+      if (res?.notificationDetails || res?.added) {
+        setAdded(true);
+        setNotifMsg("Added! You'll get a nudge when your check-in is ready 🔔");
+      } else {
+        setNotifMsg("Couldn't enable — you can also add the app from the ··· menu.");
+      }
+    } catch {
+      setNotifMsg("Open this inside the Base or Farcaster app to enable reminders.");
+    } finally {
+      setNotifBusy(false);
+    }
+  }, []);
 
   const effectiveSkin = ownsSkin(equipped) ? equipped : 0;
 
@@ -753,6 +777,30 @@ export default function Home() {
             <div className="mt-4 rounded-2xl bg-white/60 p-4 text-xs text-ink/60">
               Keep your streak alive to unlock cat skins soon. Free — you only pay gas.
             </div>
+
+            {inHost && !added && (
+              <div className="mt-4 rounded-2xl border border-kitty/30 bg-white/70 p-4 text-center">
+                <p className="font-display font-bold text-ink">Never miss a day 🔔</p>
+                <p className="mt-1 text-xs text-ink/60">
+                  Turn on reminders and we’ll ping you when your check-in is ready.
+                </p>
+                <button
+                  onClick={enableNotifs}
+                  disabled={notifBusy}
+                  className="mt-3 w-full rounded-2xl bg-ink py-3 font-display text-sm font-semibold text-white shadow-md active:scale-[0.98] disabled:opacity-60"
+                >
+                  {notifBusy ? "Opening…" : "Add app & turn on reminders"}
+                </button>
+              </div>
+            )}
+            {added && (
+              <div className="mt-4 rounded-2xl bg-white/60 p-3 text-center text-xs text-ink/60">
+                Reminders on 🔔 — we’ll nudge you when your check-in resets.
+              </div>
+            )}
+            {notifMsg && (
+              <p className="mt-2 text-center text-xs text-ink/60">{notifMsg}</p>
+            )}
           </div>
         )}
 
