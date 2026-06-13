@@ -28,6 +28,7 @@ const ZERO = "0x0000000000000000000000000000000000000000";
 type FcUser = { fid?: number; username?: string; pfpUrl?: string };
 
 const short = (a?: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "");
+const CREATOR_FID = 256643; // @fluster — feedback/casts route here
 
 function fmtTime(secs: number) {
   if (secs <= 0) return "ended";
@@ -55,6 +56,7 @@ export default function Home() {
   const [added, setAdded] = useState(false);
   const [notifMsg, setNotifMsg] = useState<string>("");
   const [notifBusy, setNotifBusy] = useState(false);
+  const [supportMsg, setSupportMsg] = useState<string>("");
   const [screen, setScreen] = useState<Screen>("home");
   const [tab, setTab] = useState<Tab>("play");
   const [run, setRun] = useState<RunResult | null>(null);
@@ -293,6 +295,35 @@ export default function Home() {
       dataSuffix: BUILDER_SUFFIX,
     });
   }, [clm, cid]);
+
+  const sendSupport = useCallback(
+    async (kind: "feedback" | "bug" | "reward") => {
+      const text =
+        kind === "bug"
+          ? "@fluster 🐾 Katty Paws — bug report\n\nWhat happened:\nWhat I expected:"
+          : kind === "reward"
+          ? "@fluster 🐾 Katty Paws — reward question\n\n"
+          : "@fluster 🐾 Katty Paws — feedback / idea\n\n";
+      setSupportMsg("");
+      try {
+        const { sdk } = await import("@farcaster/miniapp-sdk");
+        await sdk.actions.composeCast({ text });
+      } catch {
+        setSupportMsg("Open inside the Farcaster or Base app to send this.");
+      }
+    },
+    []
+  );
+
+  const messageDev = useCallback(async () => {
+    setSupportMsg("");
+    try {
+      const { sdk } = await import("@farcaster/miniapp-sdk");
+      await sdk.actions.viewProfile({ fid: CREATOR_FID });
+    } catch {
+      setSupportMsg("Open inside the Farcaster or Base app to message the dev.");
+    }
+  }, []);
 
   const enableNotifs = useCallback(async () => {
     setNotifBusy(true);
@@ -1064,6 +1095,43 @@ export default function Home() {
             <div className="mt-4 rounded-2xl bg-white/60 p-4 text-xs text-ink/60">
               {user?.username ? `@${user.username}` : "Guest"} · fid {user?.fid ?? "—"} ·{" "}
               {clientLabel || "web"}
+            </div>
+
+            <div className="mt-5">
+              <h3 className="font-display text-base font-bold text-ink">Help &amp; feedback</h3>
+              <p className="mt-1 text-xs text-ink/55">
+                A reward question, a bug, or an idea? Reach me directly — it opens a
+                cast to me, or a private DM.
+              </p>
+              <div className="mt-3 flex flex-col gap-2">
+                <button
+                  onClick={() => sendSupport("reward")}
+                  className="w-full rounded-2xl bg-white/70 py-3 text-sm font-semibold text-ink shadow-sm active:scale-[0.98]"
+                >
+                  💰 Ask about a reward
+                </button>
+                <button
+                  onClick={() => sendSupport("bug")}
+                  className="w-full rounded-2xl bg-white/70 py-3 text-sm font-semibold text-ink shadow-sm active:scale-[0.98]"
+                >
+                  🐞 Report a bug
+                </button>
+                <button
+                  onClick={() => sendSupport("feedback")}
+                  className="w-full rounded-2xl bg-white/70 py-3 text-sm font-semibold text-ink shadow-sm active:scale-[0.98]"
+                >
+                  💡 Send feedback
+                </button>
+                <button
+                  onClick={messageDev}
+                  className="w-full rounded-2xl bg-ink py-3 text-sm font-semibold text-white shadow-md active:scale-[0.98]"
+                >
+                  ✉️ Message the dev privately
+                </button>
+              </div>
+              {supportMsg && (
+                <p className="mt-2 text-xs text-ink/55">{supportMsg}</p>
+              )}
             </div>
           </div>
         )}
