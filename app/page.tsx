@@ -57,6 +57,7 @@ export default function Home() {
   const [notifMsg, setNotifMsg] = useState<string>("");
   const [notifBusy, setNotifBusy] = useState(false);
   const [supportMsg, setSupportMsg] = useState<string>("");
+  const [helpOpen, setHelpOpen] = useState(false);
   const [screen, setScreen] = useState<Screen>("home");
   const [tab, setTab] = useState<Tab>("play");
   const [run, setRun] = useState<RunResult | null>(null);
@@ -664,6 +665,13 @@ export default function Home() {
         <h1 className="font-display text-3xl font-bold text-kitty">Katty Paws</h1>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setHelpOpen(true)}
+            aria-label="Help and support"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-kitty text-base font-bold text-white shadow-md ring-2 ring-white/60 active:scale-95"
+          >
+            ?
+          </button>
+          <button
             onClick={toggleMute}
             aria-label="Toggle sound"
             className="rounded-full bg-white/70 px-2.5 py-1 text-sm shadow-sm active:scale-95"
@@ -1232,6 +1240,67 @@ export default function Home() {
             >
               Let's run! 🐾
             </button>
+          </div>
+        </div>
+      )}
+
+      {helpOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-6 sm:items-center">
+          <div className="animate-pop w-full max-w-[360px] rounded-3xl bg-cream p-5 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-xl font-bold text-ink">Help &amp; support</h2>
+              <button
+                onClick={() => setHelpOpen(false)}
+                aria-label="Close"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/5 text-base font-bold text-ink/70 active:scale-90"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-ink/55">
+              A reward question, a bug, or an idea? Reach the dev directly.
+            </p>
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  sendSupport("reward");
+                  setHelpOpen(false);
+                }}
+                className="w-full rounded-2xl bg-white py-3 text-sm font-semibold text-ink shadow-sm active:scale-[0.98]"
+              >
+                💰 Ask about a reward
+              </button>
+              <button
+                onClick={() => {
+                  sendSupport("bug");
+                  setHelpOpen(false);
+                }}
+                className="w-full rounded-2xl bg-white py-3 text-sm font-semibold text-ink shadow-sm active:scale-[0.98]"
+              >
+                🐞 Report a bug
+              </button>
+              <button
+                onClick={() => {
+                  sendSupport("feedback");
+                  setHelpOpen(false);
+                }}
+                className="w-full rounded-2xl bg-white py-3 text-sm font-semibold text-ink shadow-sm active:scale-[0.98]"
+              >
+                💡 Send feedback
+              </button>
+              <button
+                onClick={() => {
+                  messageDev();
+                  setHelpOpen(false);
+                }}
+                className="w-full rounded-2xl bg-ink py-3 text-sm font-semibold text-white shadow-md active:scale-[0.98]"
+              >
+                ✉️ Message the dev privately
+              </button>
+            </div>
+            {supportMsg && (
+              <p className="mt-2 text-center text-xs text-ink/55">{supportMsg}</p>
+            )}
           </div>
         </div>
       )}
