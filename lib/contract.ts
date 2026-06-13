@@ -66,9 +66,26 @@ export const kattyPawsAbi = [
     ],
     outputs: [{ type: "uint256" }],
   },
+  {
+    type: "function",
+    name: "cycleEnded",
+    stateMutability: "view",
+    inputs: [{ name: "cid", type: "uint256" }],
+    outputs: [{ type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "claimed",
+    stateMutability: "view",
+    inputs: [
+      { name: "", type: "uint256" },
+      { name: "", type: "address" },
+    ],
+    outputs: [{ type: "bool" }],
+  },
 ] as const;
 
-// Base Builder Code (bc_vya6ii7o) encoded as a calldata suffix. Appended to
+// Base Builder Code (bc_c5nmijk7) encoded as a calldata suffix. Appended to
 // every transaction so the app gets attribution on Base. Trailing bytes are
 // ignored by the contract's ABI decoder, so this is safe to attach.
 export const BUILDER_SUFFIX =

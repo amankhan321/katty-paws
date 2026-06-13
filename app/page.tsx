@@ -90,6 +90,20 @@ export default function Home() {
     functionName: "timeLeft",
     query: { refetchInterval: 30000 },
   });
+  const { data: cycleIsOver } = useReadContract({
+    address: KATTY_PAWS_ADDRESS,
+    abi: kattyPawsAbi,
+    functionName: "cycleEnded",
+    args: [cid],
+    query: { refetchInterval: 30000 },
+  });
+  const { data: hasClaimed, refetch: refetchClaimed } = useReadContract({
+    address: KATTY_PAWS_ADDRESS,
+    abi: kattyPawsAbi,
+    functionName: "claimed",
+    args: [cid, (address ?? ZERO) as `0x${string}`],
+    query: { enabled: !!address },
+  });
   const { data: myBest, refetch: refetchBest } = useReadContract({
     address: KATTY_PAWS_ADDRESS,
     abi: kattyPawsAbi,
@@ -114,6 +128,8 @@ export default function Home() {
   });
   const chk = useWriteContract();
   const chkRcpt = useWaitForTransactionReceipt({ hash: chk.data });
+  const clm = useWriteContract();
+  const clmRcpt = useWaitForTransactionReceipt({ hash: clm.data });
 
   const [equipped, setEquipped] = useState(0);
   useEffect(() => {
@@ -236,6 +252,10 @@ export default function Home() {
     if (chkRcpt.isSuccess) refetchStreak();
   }, [chkRcpt.isSuccess, refetchStreak]);
 
+  useEffect(() => {
+    if (clmRcpt.isSuccess) refetchClaimed();
+  }, [clmRcpt.isSuccess, refetchClaimed]);
+
   const startPay = useCallback(() => {
     pendingModeRef.current = "prize";
     setSubmitMsg("");
@@ -263,6 +283,16 @@ export default function Home() {
       dataSuffix: BUILDER_SUFFIX,
     });
   }, [chk]);
+
+  const doClaim = useCallback(() => {
+    clm.writeContract({
+      address: KATTY_PAWS_ADDRESS,
+      abi: kattyPawsAbi,
+      functionName: "claimPrize",
+      args: [cid],
+      dataSuffix: BUILDER_SUFFIX,
+    });
+  }, [clm, cid]);
 
   const enableNotifs = useCallback(async () => {
     setNotifBusy(true);
@@ -592,6 +622,10 @@ export default function Home() {
   const myRank = address
     ? wallets.findIndex((w) => w?.toLowerCase() === address.toLowerCase())
     : -1;
+  const iAmWinner = myRank >= 0;
+  const claimOpen = !!cycleIsOver;
+  const alreadyClaimed = !!hasClaimed;
+  const canClaim = iAmWinner && claimOpen && !alreadyClaimed;
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col px-5 pb-32 pt-6">
@@ -975,10 +1009,46 @@ export default function Home() {
                 );
               })}
             </div>
-            <div className="mt-4 rounded-2xl bg-white/60 p-4 text-sm text-ink/70">
-              Prize pool: <b>$15 USDC</b> locked on-chain · {fmtTime(Number(timeLeft ?? 0))} left.
-              Winners claim directly from the contract when the cycle ends.
-            </div>
+            {canClaim ? (
+              <div className="mt-4 rounded-2xl border-2 border-emerald-400 bg-emerald-50 p-4 text-center">
+                <p className="font-display text-lg font-bold text-emerald-700">
+                  You placed top 3 🎉
+                </p>
+                <p className="mt-1 text-xs text-emerald-700/70">
+                  Claim your $5 USDC straight from the contract.
+                </p>
+                <button
+                  onClick={doClaim}
+                  disabled={clm.isPending || clmRcpt.isLoading}
+                  className="mt-3 w-full rounded-2xl bg-emerald-600 py-3 font-display text-base font-bold text-white shadow-md active:scale-[0.98] disabled:opacity-60"
+                >
+                  {clm.isPending
+                    ? "Confirm in wallet…"
+                    : clmRcpt.isLoading
+                    ? "Claiming…"
+                    : "Claim $5 USDC 💰"}
+                </button>
+                {clm.error && (
+                  <p className="mt-2 text-xs text-red-600">
+                    Claim failed — the prize pool may not be funded yet. Try again shortly.
+                  </p>
+                )}
+              </div>
+            ) : iAmWinner && alreadyClaimed ? (
+              <div className="mt-4 rounded-2xl bg-emerald-50 p-4 text-center text-sm font-semibold text-emerald-700">
+                Prize claimed ✅ — $5 USDC sent to your wallet.
+              </div>
+            ) : iAmWinner && !claimOpen ? (
+              <div className="mt-4 rounded-2xl bg-white/70 p-4 text-center text-sm text-ink/70">
+                You&apos;re in the top 3 🎉 Claim opens here when the cycle ends —{" "}
+                {fmtTime(Number(timeLeft ?? 0))} left.
+              </div>
+            ) : (
+              <div className="mt-4 rounded-2xl bg-white/60 p-4 text-sm text-ink/70">
+                Top 3 each win <b>$5 USDC</b> · {fmtTime(Number(timeLeft ?? 0))} left.
+                Winners claim directly from the contract when the cycle ends.
+              </div>
+            )}
           </div>
         )}
 
