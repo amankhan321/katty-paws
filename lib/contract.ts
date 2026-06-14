@@ -83,6 +83,13 @@ export const kattyPawsAbi = [
     ],
     outputs: [{ type: "bool" }],
   },
+  {
+    type: "function",
+    name: "startNewCycle",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: [],
+  },
 ] as const;
 
 // Base Builder Code (bc_c5nmijk7) encoded as a calldata suffix. Appended to

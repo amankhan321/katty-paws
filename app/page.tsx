@@ -77,7 +77,7 @@ export default function Home() {
   const sub = useWriteContract();
   const subRcpt = useWaitForTransactionReceipt({ hash: sub.data });
 
-  const { data: cycleId } = useReadContract({
+  const { data: cycleId, refetch: refetchCycleId } = useReadContract({
     address: KATTY_PAWS_ADDRESS,
     abi: kattyPawsAbi,
     functionName: "cycleId",
@@ -91,13 +91,13 @@ export default function Home() {
     args: [cid],
     query: { refetchInterval: 15000 },
   });
-  const { data: timeLeft } = useReadContract({
+  const { data: timeLeft, refetch: refetchTimeLeft } = useReadContract({
     address: KATTY_PAWS_ADDRESS,
     abi: kattyPawsAbi,
     functionName: "timeLeft",
     query: { refetchInterval: 30000 },
   });
-  const { data: cycleIsOver } = useReadContract({
+  const { data: cycleIsOver, refetch: refetchEnded } = useReadContract({
     address: KATTY_PAWS_ADDRESS,
     abi: kattyPawsAbi,
     functionName: "cycleEnded",
@@ -137,6 +137,8 @@ export default function Home() {
   const chkRcpt = useWaitForTransactionReceipt({ hash: chk.data });
   const clm = useWriteContract();
   const clmRcpt = useWaitForTransactionReceipt({ hash: clm.data });
+  const roll = useWriteContract();
+  const rollRcpt = useWaitForTransactionReceipt({ hash: roll.data });
 
   const [equipped, setEquipped] = useState(0);
   useEffect(() => {
@@ -263,6 +265,14 @@ export default function Home() {
     if (clmRcpt.isSuccess) refetchClaimed();
   }, [clmRcpt.isSuccess, refetchClaimed]);
 
+  useEffect(() => {
+    if (rollRcpt.isSuccess) {
+      refetchCycleId();
+      refetchTimeLeft();
+      refetchEnded();
+    }
+  }, [rollRcpt.isSuccess, refetchCycleId, refetchTimeLeft, refetchEnded]);
+
   const startPay = useCallback(() => {
     pendingModeRef.current = "prize";
     setSubmitMsg("");
@@ -276,6 +286,16 @@ export default function Home() {
       dataSuffix: BUILDER_SUFFIX,
     });
   }, [pay, sub]);
+
+  const doRoll = useCallback(() => {
+    roll.reset();
+    roll.writeContract({
+      address: KATTY_PAWS_ADDRESS,
+      abi: kattyPawsAbi,
+      functionName: "startNewCycle",
+      dataSuffix: BUILDER_SUFFIX,
+    });
+  }, [roll]);
 
   const connectWallet = useCallback(() => {
     const inj = connectors.find((c) => c.id === "injected");
@@ -741,6 +761,28 @@ export default function Home() {
                 >
                   Connect Wallet
                 </button>
+              ) : cycleIsOver ? (
+                <div className="relative">
+                  <button
+                    onClick={doRoll}
+                    disabled={roll.isPending || rollRcpt.isLoading}
+                    className="w-full rounded-2xl bg-kitty py-4 font-display text-lg font-bold text-white shadow-md active:scale-[0.98] disabled:opacity-60"
+                  >
+                    {roll.isPending
+                      ? "Confirm in wallet…"
+                      : rollRcpt.isLoading
+                      ? "Starting new round…"
+                      : "🔄 Start new round"}
+                  </button>
+                  <p className="mt-2 text-center text-[11px] text-ink/55">
+                    Last cycle ended — tap to open the next round, then play.
+                  </p>
+                  {roll.error && (
+                    <p className="mt-2 text-center text-xs text-red-600">
+                      Couldn&apos;t start the round — needs a little ETH for gas. Try again.
+                    </p>
+                  )}
+                </div>
               ) : (
                 <div className="relative">
                   <button
@@ -766,7 +808,7 @@ export default function Home() {
               <div className="relative">
                 <button
                   onClick={startTurbo}
-                  disabled={pay.isPending || payRcpt.isLoading}
+                  disabled={pay.isPending || payRcpt.isLoading || !!cycleIsOver}
                   className="w-full rounded-2xl bg-ink/90 py-3 font-display text-base font-bold text-white shadow active:scale-[0.98] disabled:opacity-60"
                 >
                   ⚡ Turbo Run
