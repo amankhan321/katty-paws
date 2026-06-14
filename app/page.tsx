@@ -40,6 +40,10 @@ function fmtTime(secs: number) {
   return `${m}m`;
 }
 
+function timeLabel(secs: number) {
+  return secs <= 0 ? "Ended" : `${fmtTime(secs)} left`;
+}
+
 export default function Home() {
   const [booted, setBooted] = useState(false);
   const [inHost, setInHost] = useState(false);
@@ -679,7 +683,7 @@ export default function Home() {
             {muted ? "🔇" : "🔊"}
           </button>
           <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-bold text-ink shadow-sm">
-            {timeLeft !== undefined ? fmtTime(Number(timeLeft)) + " left" : "Base"}
+            {timeLeft !== undefined ? timeLabel(Number(timeLeft)) : "Base"}
           </span>
         </div>
       </header>
@@ -1080,11 +1084,11 @@ export default function Home() {
             ) : iAmWinner && !claimOpen ? (
               <div className="mt-4 rounded-2xl bg-white/70 p-4 text-center text-sm text-ink/70">
                 You&apos;re in the top 3 🎉 Claim opens here when the cycle ends —{" "}
-                {fmtTime(Number(timeLeft ?? 0))} left.
+                {timeLabel(Number(timeLeft ?? 0))}.
               </div>
             ) : (
               <div className="mt-4 rounded-2xl bg-white/60 p-4 text-sm text-ink/70">
-                Top 3 each win <b>$5 USDC</b> · {fmtTime(Number(timeLeft ?? 0))} left.
+                Top 3 each win <b>$5 USDC</b> · {timeLabel(Number(timeLeft ?? 0))}.
                 Winners claim directly from the contract when the cycle ends.
               </div>
             )}
@@ -1232,7 +1236,7 @@ export default function Home() {
               Top 3 runners win <span className="underline">$5 each</span>
             </p>
             <div className="mt-4 rounded-2xl bg-white/20 px-4 py-2 text-sm font-semibold text-white">
-              🔒 Locked on-chain · {fmtTime(Number(timeLeft ?? 0))} left
+              🔒 Locked on-chain · {timeLabel(Number(timeLeft ?? 0))}
             </div>
             <button
               onClick={() => setShowHype(false)}
